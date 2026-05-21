@@ -22,6 +22,7 @@ import com.hotel.grms.module.stay.entity.StayOrder;
 
 import com.hotel.grms.module.stay.mapper.StayOrderMapper;
 
+import com.hotel.grms.module.room.RoomCleanStatus;
 import com.hotel.grms.module.room.RoomStatus;
 
 import com.hotel.grms.module.room.entity.Room;
@@ -153,10 +154,9 @@ public class RoomAvailabilityService {
 
         }
 
-        if (!RoomStatus.VACANT_CLEAN.equals(room.getStatus())) {
-
-            throw new BusinessException(40001, "客房当前状态不可预排房");
-
+        String occupancy = RoomStatus.normalizeOccupancy(room.getStatus());
+        if (!RoomStatus.VACANT.equals(occupancy)) {
+            throw new BusinessException(40001, "客房当前占用态不可预排房");
         }
 
     }
@@ -188,9 +188,8 @@ public class RoomAvailabilityService {
         ReservationTimePolicy.assertValidRange(arrivalAt, departureAt);
 
         LambdaQueryWrapper<Room> wrapper = new LambdaQueryWrapper<Room>()
-
-                .eq(Room::getStatus, RoomStatus.VACANT_CLEAN)
-
+                .eq(Room::getStatus, RoomStatus.VACANT)
+                .eq(Room::getCleanStatus, RoomCleanStatus.CLEAN)
                 .orderByAsc(Room::getFloorNo)
 
                 .orderByAsc(Room::getRoomNo);

@@ -189,6 +189,19 @@ public class RoomController {
     }
 
     /**
+     * 空净/脏房一键切换。
+     *
+     * @param id 客房 ID
+     * @return 更新后客房
+     */
+    @PostMapping("/{id}/status/toggle-clean-dirty")
+    @PreAuthorize("hasAnyAuthority('room:status:dirty','room:status:clean','room:status:force')")
+    public R<RoomResponse> toggleCleanDirty(@PathVariable Long id) {
+        Room room = roomService.toggleCleanDirty(id);
+        return R.ok(toResponse(room));
+    }
+
+    /**
      * 强制改房态。
      *
      * @param id      客房 ID
@@ -211,6 +224,7 @@ public class RoomController {
         response.setRoomTypeName(typeName);
         response.setFloorNo(room.getFloorNo());
         response.setStatus(room.getStatus());
+        response.setCleanStatus(room.getCleanStatus());
         response.setVersion(room.getVersion());
         return response;
     }

@@ -6,6 +6,8 @@ import com.hotel.grms.module.reservation.ReservationStatus;
 import com.hotel.grms.module.reservation.entity.Reservation;
 import com.hotel.grms.module.reservation.mapper.ReservationMapper;
 import com.hotel.grms.module.reservation.support.ReservationTimePolicy;
+import com.hotel.grms.module.room.RoomCleanStatus;
+import com.hotel.grms.module.room.RoomStatus;
 import com.hotel.grms.module.room.dto.RoomScheduleDto;
 import com.hotel.grms.module.room.dto.RoomScheduleOrderDto;
 import com.hotel.grms.module.room.entity.Room;
@@ -71,7 +73,8 @@ public class RoomScheduleService {
         dto.setRoomTypeId(room.getRoomTypeId());
         dto.setRoomTypeName(roomType.getName());
         dto.setRackRate(roomType.getRackRate());
-        dto.setActualStatus(room.getStatus());
+        dto.setOccupancyStatus(RoomStatus.normalizeOccupancy(room.getStatus()));
+        dto.setCleanStatus(resolveCleanStatus(room));
         dto.setVersion(room.getVersion());
         dto.setViewDate(viewDate);
         dto.setOrders(orders);
@@ -147,5 +150,15 @@ public class RoomScheduleService {
             }
         }
         return false;
+    }
+
+    private String resolveCleanStatus(Room room) {
+        if (room.getCleanStatus() != null && !room.getCleanStatus().isEmpty()) {
+            return room.getCleanStatus();
+        }
+        if (RoomStatus.DIRTY.equals(room.getStatus())) {
+            return RoomCleanStatus.DIRTY;
+        }
+        return RoomCleanStatus.CLEAN;
     }
 }

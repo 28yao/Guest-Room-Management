@@ -70,7 +70,7 @@ INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT r.id, p.id FROM sys_role r JOIN sys_permission p ON p.code IN (
     'reservation:manage', 'stay:checkin', 'stay:change_room',
     'billing:checkout', 'shift:open', 'shift:close',
-    'room:status:maintenance', 'room:status:dirty', 'hk:view'
+    'room:status:maintenance', 'room:status:dirty', 'room:status:clean', 'hk:view'
 ) WHERE r.code = 'ROLE_FRONT_DESK';
 
 -- 保洁权限

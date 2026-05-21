@@ -15,10 +15,13 @@ import com.hotel.grms.module.room.service.RoomTypeService;
 import com.hotel.grms.module.room.state.RoomStateMachine;
 import com.hotel.grms.module.shift.service.ShiftSessionService;
 import com.hotel.grms.module.stay.StayStatus;
+import com.hotel.grms.module.billing.entity.Folio;
+import com.hotel.grms.module.billing.mapper.FolioMapper;
 import com.hotel.grms.module.stay.dto.ChangeRoomRequest;
 import com.hotel.grms.module.stay.dto.CheckInFromReservationRequest;
 import com.hotel.grms.module.stay.dto.StayRemarkRequest;
 import com.hotel.grms.module.stay.dto.StayResponse;
+import com.hotel.grms.module.stay.dto.VoidCheckoutRequest;
 import com.hotel.grms.module.stay.dto.WalkInCheckInRequest;
 import com.hotel.grms.module.stay.entity.StayGuest;
 import com.hotel.grms.module.stay.entity.StayOrder;
@@ -27,6 +30,9 @@ import com.hotel.grms.module.stay.mapper.StayInHouseRow;
 import com.hotel.grms.module.stay.mapper.StayOrderMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -54,12 +60,14 @@ public class StayService {
     private final RoomAvailabilityService roomAvailabilityService;
     private final ShiftSessionService shiftSessionService;
     private final BillingService billingService;
+    private final FolioMapper folioMapper;
 
     public StayService(StayOrderMapper stayOrderMapper, StayGuestMapper stayGuestMapper,
                        ReservationMapper reservationMapper, RoomService roomService,
                        RoomTypeService roomTypeService, RoomStateMachine roomStateMachine,
                        RoomAvailabilityService roomAvailabilityService,
-                       ShiftSessionService shiftSessionService, BillingService billingService) {
+                       ShiftSessionService shiftSessionService, BillingService billingService,
+                       FolioMapper folioMapper) {
         this.stayOrderMapper = stayOrderMapper;
         this.stayGuestMapper = stayGuestMapper;
         this.reservationMapper = reservationMapper;
@@ -69,6 +77,7 @@ public class StayService {
         this.roomAvailabilityService = roomAvailabilityService;
         this.shiftSessionService = shiftSessionService;
         this.billingService = billingService;
+        this.folioMapper = folioMapper;
     }
 
     /**
@@ -82,9 +91,7 @@ public class StayService {
         shiftSessionService.requireOpenSessionId();
         assertDateRange(request.getArrivalDate(), request.getDepartureDate());
         Room room = roomService.getById(request.getRoomId());
-        if (!RoomStatus.VACANT_CLEAN.equals(room.getStatus())) {
-            throw new BusinessException(40001, "仅空净房可办理 Walk-in 入住");
-        }
+        roomStateMachine.assertCheckInAllowed(room);
         LocalDateTime[] range = ReservationTimePolicy.resolveRange(request.getArrivalDate(),
                 request.getDepartureDate(), request.getArrivalAt(), request.getDepartureAt());
         roomAvailabilityService.assertNoStayTimeConflict(request.getRoomId(), range[0], range[1], null);
@@ -94,7 +101,7 @@ public class StayService {
                 request.getGuestName(), request.getGuestPhone());
         insertGuest(stay.getId(), request.getGuestName(), request.getGuestPhone(), request.getIdCard());
         billingService.initFolioForStay(stay);
-        roomService.transitionStatus(room.getId(), RoomStatus.OCCUPIED, null);
+        roomService.transitionOccupancy(room.getId(), RoomStatus.OCCUPIED, null);
         return getById(stay.getId());
     }
 
@@ -138,7 +145,7 @@ public class StayService {
                 reservation.getGuestName(), reservation.getGuestPhone());
         insertGuest(stay.getId(), reservation.getGuestName(), reservation.getGuestPhone(), null);
         billingService.initFolioForStay(stay);
-        roomService.transitionStatus(room.getId(), RoomStatus.OCCUPIED, null);
+        roomService.transitionOccupancy(room.getId(), RoomStatus.OCCUPIED, null);
         reservation.setStatus(ReservationStatus.CHECKED_IN);
         reservation.setRoomId(roomId);
         reservationMapper.updateById(reservation);
@@ -150,8 +157,9 @@ public class StayService {
      *
      * @return 在住列表
      */
-    public List<StayResponse> listInHouse() {
-        List<StayInHouseRow> rows = stayOrderMapper.selectInHouseRows();
+    public List<StayResponse> listInHouse(String guestName) {
+        String keyword = StringUtils.hasText(guestName) ? guestName.trim() : null;
+        List<StayInHouseRow> rows = stayOrderMapper.selectInHouseRows(keyword);
         List<StayResponse> result = new ArrayList<StayResponse>(rows.size());
         for (StayInHouseRow row : rows) {
             result.add(toResponse(row));
@@ -198,6 +206,14 @@ public class StayService {
                 response.setResNo(res.getResNo());
             }
         }
+        Folio folio = folioMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Folio>()
+                        .eq(Folio::getStayOrderId, id).last("LIMIT 1"));
+        if (folio != null) {
+            response.setFolioId(folio.getId());
+            response.setFolioTotalAmount(folio.getTotalAmount());
+            response.setFolioPaidAmount(folio.getPaidAmount());
+        }
         return response;
     }
 
@@ -222,8 +238,9 @@ public class StayService {
         roomAvailabilityService.assertNoStayTimeConflict(request.getTargetRoomId(), stayStart, stayEnd, id);
         roomAvailabilityService.assertAssignable(request.getTargetRoomId(), stayStart, stayEnd, null);
         Long oldRoomId = stay.getRoomId();
-        roomService.transitionStatus(oldRoomId, RoomStatus.DIRTY, null);
-        roomService.transitionStatus(request.getTargetRoomId(), RoomStatus.OCCUPIED,
+        roomService.transitionOccupancy(oldRoomId, RoomStatus.VACANT, null);
+        roomService.markDirty(oldRoomId, null);
+        roomService.transitionOccupancy(request.getTargetRoomId(), RoomStatus.OCCUPIED,
                 request.getTargetRoomVersion());
         stay.setRoomId(request.getTargetRoomId());
         stay.setRoomTypeId(target.getRoomTypeId());
@@ -246,6 +263,64 @@ public class StayService {
         stay.setRemark(request.getRemark());
         stayOrderMapper.updateById(stay);
         return getById(id);
+    }
+
+    /**
+     * 在住提前退房（退订退款）：截断房费、可选退款、关账、客房置脏。
+     *
+     * @param id      在住单 ID
+     * @param request 请求
+     * @return 已退房详情（状态 CHECKED_OUT）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public StayResponse voidCheckout(Long id, VoidCheckoutRequest request) {
+        Long shiftId = shiftSessionService.requireOpenSessionId();
+        StayOrder stay = getEntity(id);
+        assertInHouse(stay);
+        LocalDate chargeThrough = request.getChargeThroughDate() != null
+                ? request.getChargeThroughDate() : LocalDate.now();
+        if (chargeThrough.isBefore(stay.getArrivalDate())) {
+            throw new BusinessException(40023, "计费截止日不能早于入住日期");
+        }
+        Folio folio = billingService.truncateFolioToChargeDate(id, chargeThrough);
+        BigDecimal refund = resolveRefundAmount(folio, request.getRefundAmount());
+        if (folio.getId() != null && refund.compareTo(BigDecimal.ZERO) > 0) {
+            billingService.recordStayRefund(folio.getId(), refund, request.getRefundMethod(), shiftId);
+        }
+        billingService.closeFolio(folio.getId());
+        stay.setStatus(StayStatus.CHECKED_OUT);
+        stay.setCheckOutAt(LocalDateTime.now());
+        if (StringUtils.hasText(request.getRemark())) {
+            String existing = stay.getRemark();
+            stay.setRemark(StringUtils.hasText(existing) ? existing + "；" + request.getRemark() : request.getRemark());
+        }
+        stayOrderMapper.updateById(stay);
+        if (stay.getReservationId() != null) {
+            Reservation reservation = reservationMapper.selectById(stay.getReservationId());
+            if (reservation != null && ReservationStatus.CHECKED_IN.equals(reservation.getStatus())) {
+                reservation.setStatus(ReservationStatus.RELEASED);
+                reservationMapper.updateById(reservation);
+            }
+        }
+        roomService.transitionOccupancy(stay.getRoomId(), RoomStatus.VACANT, null);
+        roomService.markDirty(stay.getRoomId(), null);
+        return getById(id);
+    }
+
+    private BigDecimal resolveRefundAmount(Folio folio, BigDecimal requested) {
+        BigDecimal paid = folio.getPaidAmount() != null ? folio.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal total = folio.getTotalAmount() != null ? folio.getTotalAmount() : BigDecimal.ZERO;
+        BigDecimal auto = paid.subtract(total);
+        if (auto.compareTo(BigDecimal.ZERO) < 0) {
+            auto = BigDecimal.ZERO;
+        }
+        if (requested == null) {
+            return auto;
+        }
+        if (requested.compareTo(paid) > 0) {
+            throw new BusinessException(40024, "退款金额不能大于已收金额");
+        }
+        return requested;
     }
 
     private StayOrder buildStayOrder(Long reservationId, Room room, LocalDate arrival, LocalDate departure,
@@ -329,6 +404,7 @@ public class StayService {
         response.setCheckInAt(row.getCheckInAt());
         response.setFolioId(row.getFolioId());
         response.setFolioTotalAmount(row.getFolioTotalAmount());
+        response.setFolioPaidAmount(row.getFolioPaidAmount());
         return response;
     }
 }

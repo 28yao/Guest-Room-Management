@@ -346,6 +346,10 @@
 | T-STAY-FE-02 | 在住列表页 | [依赖: T-STAY-CTL-03] | 2h | 仅 IN_HOUSE | 已完成 |
 | T-STAY-FE-03 | 换房对话框+目标房选择 | [依赖: T-STAY-CTL-04] | 3h | 成功后刷新账单 | 已完成 |
 | T-STAY-FE-04 | 在住备注编辑 | [依赖: T-STAY-CTL-06] | 1h | 保存备注 | 已完成 |
+| T-STAY-FE-05 | 在住列表：客人姓名查询 | [依赖: T-STAY-CTL-03] | 1h | 模糊过滤 | 已完成 |
+| T-STAY-FE-06 | 在住列表：退订（退款）对话框 | [依赖: T-STAY-CTL-08] | 2h | 计费截止日+退款 | 已完成 |
+| T-ROOM-FE-10 | 房态图：订单行退订退款/换房 | [依赖: T-STAY-CTL-08, T-RES-CTL-06a] | 3h | 预订/在住分支 | 已完成 |
+| T-ROOM-FE-11 | 房态图：空净/脏房单按钮切换 | [依赖: T-ROOM-CTL-06/06a] | 1h | 脏↔净一键 | 已完成 |
 
 ### Controller 层任务
 
@@ -356,6 +360,9 @@
 | T-STAY-CTL-03 | `GET /stays/in-house` | [依赖: T-STAY-SVC-01] | 1h | 列表 | 已完成 |
 | T-STAY-CTL-04 | `POST /stays/{id}/change-room` | [依赖: T-STAY-SVC-03] | 2h | 触发重算 | 已完成 |
 | T-STAY-CTL-06 | `PUT /stays/{id}/remark` | [依赖: T-STAY-SVC-01] | 1h | 备注 | 已完成 |
+| T-STAY-CTL-07 | `GET /stays/in-house?guestName=` | [依赖: T-STAY-SVC-01] | 0.5h | 姓名模糊 | 已完成 |
+| T-STAY-CTL-08 | `POST /stays/{id}/void-checkout` | [依赖: T-STAY-SVC-04] | 2h | 提前退房+退款 | 已完成 |
+| T-RES-CTL-06a | `POST /reservations/{id}/cancel-with-refund` | [依赖: T-RES-SVC-03] | 1h | 退订+退款流水 | 已完成 |
 
 ### Service 层任务
 
@@ -364,18 +371,22 @@
 | T-STAY-SVC-01 | `StayService.checkInWalkIn` | [依赖: T-ROOM-SVC-04, T-BILL-SVC-01, T-SHIFT-SVC-01] | 4h | 房态 OCCUPIED | 已完成 |
 | T-STAY-SVC-02 | `checkInFromReservation` | [依赖: T-RES-SVC-01, T-STAY-SVC-01] | 3h | TC-02 | 已完成 |
 | T-STAY-SVC-03 | `changeRoom`：原房脏、目标校验、调 Billing 重算 | [依赖: T-BILL-SVC-02, T-ROOM-SVC-04] | 4h | BR-06 | 已完成 |
+| T-STAY-SVC-04 | `voidCheckout`：截断房费、退款流水、退房脏房 | [依赖: T-BILL-SVC-03] | 4h | §7.9 | 已完成 |
+| T-BILL-SVC-03 | `truncateFolio` / `recordRefund` / `recordReservationRefund` | [依赖: T-BILL-MAP-02] | 3h | 支付流水 | 已完成 |
 
 ### Mapper 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
 | T-STAY-MAP-01 | `StayOrderMapper` / `StayGuestMapper` | [依赖: T-INFRA-DB-03] | 2h | 关联查询 | 已完成 |
+| T-BILL-MAP-02 | `PaymentMapper` | [依赖: T-INFRA-DB-01] | 1h | 退款流水 | 已完成 |
 
 ### Repository/数据持久化任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
 | T-STAY-REPO-01 | 实体 `StayOrder` / `StayGuest` | [依赖: T-INFRA-DB-01] | 1h | JavaDoc 完整 | 已完成 |
+| T-BILL-REPO-02 | 实体 `Payment` + V11 可空 folio_id | [依赖: T-INFRA-DB-01] | 1h | 预订退款 | 已完成 |
 
 ### 页面测试方法
 

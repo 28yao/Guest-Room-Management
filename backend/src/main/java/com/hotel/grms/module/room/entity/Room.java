@@ -8,7 +8,7 @@ import com.baomidou.mybatisplus.annotation.Version;
 import java.time.LocalDateTime;
 
 /**
- * 客房实体，含主状态与乐观锁版本号。
+ * 客房实体：占用态 status + 保洁态 clean_status + 乐观锁 version。
  *
  * @author liuxinsi
  * @date 2026-05-21
@@ -22,6 +22,7 @@ public class Room {
     private Long roomTypeId;
     private Integer floorNo;
     private String status;
+    private String cleanStatus;
     @Version
     private Integer version;
     private LocalDateTime createdAt;
@@ -65,6 +66,14 @@ public class Room {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getCleanStatus() {
+        return cleanStatus;
+    }
+
+    public void setCleanStatus(String cleanStatus) {
+        this.cleanStatus = cleanStatus;
     }
 
     public Integer getVersion() {

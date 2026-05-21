@@ -32,6 +32,7 @@ public class StayInHouseRow {
     private String idCard;
     private Long folioId;
     private BigDecimal folioTotalAmount;
+    private BigDecimal folioPaidAmount;
 
     public Long getStayId() {
         return stayId;
@@ -191,5 +192,13 @@ public class StayInHouseRow {
 
     public void setFolioTotalAmount(BigDecimal folioTotalAmount) {
         this.folioTotalAmount = folioTotalAmount;
+    }
+
+    public BigDecimal getFolioPaidAmount() {
+        return folioPaidAmount;
+    }
+
+    public void setFolioPaidAmount(BigDecimal folioPaidAmount) {
+        this.folioPaidAmount = folioPaidAmount;
     }
 }

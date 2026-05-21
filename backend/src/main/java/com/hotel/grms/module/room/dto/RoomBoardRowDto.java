@@ -16,6 +16,7 @@ public class RoomBoardRowDto {
     private String roomTypeName;
     private Integer floorNo;
     private String status;
+    private String cleanStatus;
     private Integer version;
     private BigDecimal rackRate;
     private Integer expectedArrival;
@@ -70,6 +71,14 @@ public class RoomBoardRowDto {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getCleanStatus() {
+        return cleanStatus;
+    }
+
+    public void setCleanStatus(String cleanStatus) {
+        this.cleanStatus = cleanStatus;
     }
 
     public Integer getVersion() {

@@ -32,6 +32,7 @@ public class StayResponse {
     private LocalDateTime checkInAt;
     private Long folioId;
     private BigDecimal folioTotalAmount;
+    private BigDecimal folioPaidAmount;
 
     public Long getId() {
         return id;
@@ -191,5 +192,13 @@ public class StayResponse {
 
     public void setFolioTotalAmount(BigDecimal folioTotalAmount) {
         this.folioTotalAmount = folioTotalAmount;
+    }
+
+    public BigDecimal getFolioPaidAmount() {
+        return folioPaidAmount;
+    }
+
+    public void setFolioPaidAmount(BigDecimal folioPaidAmount) {
+        this.folioPaidAmount = folioPaidAmount;
     }
 }

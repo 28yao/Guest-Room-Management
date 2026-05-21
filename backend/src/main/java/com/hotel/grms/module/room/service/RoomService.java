@@ -2,6 +2,7 @@ package com.hotel.grms.module.room.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hotel.grms.common.BusinessException;
+import com.hotel.grms.module.room.RoomCleanStatus;
 import com.hotel.grms.module.room.RoomStatus;
 import com.hotel.grms.module.room.dto.ForceStatusRequest;
 import com.hotel.grms.module.room.dto.RoomRequest;
@@ -21,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 客房维护与房态更新服务。
+ * 客房维护与占用态/保洁态更新服务。
  *
  * @author liuxinsi
  * @date 2026-05-21
@@ -80,11 +81,12 @@ public class RoomService {
         if (room == null) {
             throw new BusinessException(40013, "客房不存在");
         }
+        normalizeRoomFields(room);
         return room;
     }
 
     /**
-     * 创建客房，初始状态为空净。
+     * 创建客房，初始为空房+空净。
      *
      * @param request 请求
      * @return 新客房
@@ -97,7 +99,8 @@ public class RoomService {
         room.setRoomNo(request.getRoomNo());
         room.setRoomTypeId(request.getRoomTypeId());
         room.setFloorNo(request.getFloorNo());
-        room.setStatus(RoomStatus.VACANT_CLEAN);
+        room.setStatus(RoomStatus.VACANT);
+        room.setCleanStatus(RoomCleanStatus.CLEAN);
         roomMapper.insert(room);
         RoomType type = roomTypeService.getById(room.getRoomTypeId());
         return toResponse(room, type.getName());
@@ -124,25 +127,26 @@ public class RoomService {
     }
 
     /**
-     * 业务状态迁移（校验状态机）。
+     * 占用态迁移（校验状态机，不改保洁态）。
      *
-     * @param roomId     客房 ID
-     * @param toStatus   目标状态
-     * @param version    客户端版本号，可为 null
+     * @param roomId   客房 ID
+     * @param toStatus 目标占用态
+     * @param version  客户端版本号，可为 null
      * @return 更新后客房
      */
     @Transactional(rollbackFor = Exception.class)
-    public Room transitionStatus(Long roomId, String toStatus, Integer version) {
+    public Room transitionOccupancy(Long roomId, String toStatus, Integer version) {
         Room room = getById(roomId);
         applyVersion(room, version);
-        roomStateMachine.assertNormalTransition(room.getStatus(), toStatus);
-        room.setStatus(toStatus);
+        String target = RoomStatus.normalizeOccupancy(toStatus);
+        roomStateMachine.assertOccupancyTransition(room.getStatus(), target);
+        room.setStatus(target);
         updateWithOptimisticLock(room);
         return roomMapper.selectById(roomId);
     }
 
     /**
-     * 设为脏房（走状态机校验）。
+     * 设为脏房（仅保洁态，任意占用态均可）。
      *
      * @param roomId  客房 ID
      * @param request 请求
@@ -150,11 +154,11 @@ public class RoomService {
      */
     @Transactional(rollbackFor = Exception.class)
     public Room markDirty(Long roomId, RoomStatusVersionRequest request) {
-        return transitionStatus(roomId, RoomStatus.DIRTY, request == null ? null : request.getVersion());
+        return updateCleanStatus(roomId, RoomCleanStatus.DIRTY, request == null ? null : request.getVersion());
     }
 
     /**
-     * 设为空净（走状态机校验，通常由保洁完成打扫）。
+     * 设为空净（仅保洁态）。
      *
      * @param roomId  客房 ID
      * @param request 请求
@@ -162,11 +166,27 @@ public class RoomService {
      */
     @Transactional(rollbackFor = Exception.class)
     public Room markClean(Long roomId, RoomStatusVersionRequest request) {
-        return transitionStatus(roomId, RoomStatus.VACANT_CLEAN, request == null ? null : request.getVersion());
+        return updateCleanStatus(roomId, RoomCleanStatus.CLEAN, request == null ? null : request.getVersion());
     }
 
     /**
-     * 强制改房态（跳过状态机校验）。
+     * 保洁态净/脏一键切换（与占用态无关，全部客房可用）。
+     *
+     * @param roomId 客房 ID
+     * @return 更新后客房
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Room toggleCleanDirty(Long roomId) {
+        Room room = getById(roomId);
+        String next = RoomCleanStatus.DIRTY.equals(resolveCleanStatus(room))
+                ? RoomCleanStatus.CLEAN : RoomCleanStatus.DIRTY;
+        room.setCleanStatus(next);
+        updateWithOptimisticLock(room);
+        return roomMapper.selectById(roomId);
+    }
+
+    /**
+     * 强制改占用态/保洁态（兼容历史目标码）。
      *
      * @param roomId  客房 ID
      * @param request 请求
@@ -176,9 +196,46 @@ public class RoomService {
     public Room forceStatus(Long roomId, ForceStatusRequest request) {
         Room room = getById(roomId);
         applyVersion(room, request.getVersion());
-        room.setStatus(request.getTargetStatus());
+        applyForceTarget(room, request.getTargetStatus());
         updateWithOptimisticLock(room);
         return roomMapper.selectById(roomId);
+    }
+
+    private Room updateCleanStatus(Long roomId, String cleanStatus, Integer version) {
+        Room room = getById(roomId);
+        applyVersion(room, version);
+        room.setCleanStatus(cleanStatus);
+        updateWithOptimisticLock(room);
+        return roomMapper.selectById(roomId);
+    }
+
+    private void applyForceTarget(Room room, String targetStatus) {
+        if (RoomCleanStatus.DIRTY.equals(targetStatus)) {
+            room.setCleanStatus(RoomCleanStatus.DIRTY);
+            return;
+        }
+        if (RoomCleanStatus.CLEAN.equals(targetStatus) || RoomStatus.VACANT_CLEAN.equals(targetStatus)) {
+            room.setCleanStatus(RoomCleanStatus.CLEAN);
+            if (RoomStatus.VACANT_CLEAN.equals(targetStatus)) {
+                room.setStatus(RoomStatus.VACANT);
+            }
+            return;
+        }
+        room.setStatus(RoomStatus.normalizeOccupancy(targetStatus));
+    }
+
+    private void normalizeRoomFields(Room room) {
+        room.setStatus(RoomStatus.normalizeOccupancy(room.getStatus()));
+        if (room.getCleanStatus() == null || room.getCleanStatus().isEmpty()) {
+            room.setCleanStatus(RoomCleanStatus.CLEAN);
+        }
+    }
+
+    private String resolveCleanStatus(Room room) {
+        if (room.getCleanStatus() != null) {
+            return room.getCleanStatus();
+        }
+        return RoomCleanStatus.CLEAN;
     }
 
     private void assertRoomNoUnique(String roomNo, Long excludeId) {
@@ -221,6 +278,7 @@ public class RoomService {
     }
 
     private RoomResponse toResponse(Room room, String typeName) {
+        normalizeRoomFields(room);
         RoomResponse response = new RoomResponse();
         response.setId(room.getId());
         response.setRoomNo(room.getRoomNo());
@@ -228,6 +286,7 @@ public class RoomService {
         response.setRoomTypeName(typeName);
         response.setFloorNo(room.getFloorNo());
         response.setStatus(room.getStatus());
+        response.setCleanStatus(room.getCleanStatus());
         response.setVersion(room.getVersion());
         return response;
     }

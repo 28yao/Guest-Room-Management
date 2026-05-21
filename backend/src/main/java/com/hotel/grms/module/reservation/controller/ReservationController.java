@@ -4,6 +4,7 @@ import com.hotel.grms.common.PageResult;
 import com.hotel.grms.common.R;
 import com.hotel.grms.module.reservation.dto.AssignRoomRequest;
 import com.hotel.grms.module.reservation.dto.AvailableRoomDto;
+import com.hotel.grms.module.reservation.dto.CancelWithRefundRequest;
 import com.hotel.grms.module.reservation.dto.ReleaseReservationRequest;
 import com.hotel.grms.module.reservation.dto.ReservationCreateRequest;
 import com.hotel.grms.module.reservation.dto.ReservationResponse;
@@ -134,6 +135,20 @@ public class ReservationController {
     @PreAuthorize("hasAuthority('reservation:manage')")
     public R<ReservationResponse> cancel(@PathVariable Long id) {
         return R.ok(reservationService.cancel(id));
+    }
+
+    /**
+     * 退订（退款）：取消预订并记录可选退款流水。
+     *
+     * @param id      预订 ID
+     * @param request 请求体
+     * @return 更新后详情
+     */
+    @PostMapping("/{id}/cancel-with-refund")
+    @PreAuthorize("hasAuthority('reservation:manage')")
+    public R<ReservationResponse> cancelWithRefund(@PathVariable Long id,
+                                                     @Validated @RequestBody CancelWithRefundRequest request) {
+        return R.ok(reservationService.cancelWithRefund(id, request));
     }
 
     /**

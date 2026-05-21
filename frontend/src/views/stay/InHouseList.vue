@@ -2,7 +2,18 @@
   <div>
     <div class="toolbar">
       <h3>在住管理</h3>
-      <el-button type="primary" @click="load">刷新</el-button>
+      <div class="toolbar-actions">
+        <el-input
+          v-model="guestNameQuery"
+          placeholder="客人姓名"
+          clearable
+          style="width: 160px"
+          @keyup.enter="load"
+          @clear="load"
+        />
+        <el-button type="primary" @click="load">查询</el-button>
+        <el-button @click="load">刷新</el-button>
+      </div>
     </div>
 
     <el-table :data="list" border>
@@ -14,12 +25,16 @@
       <el-table-column label="入住/离店" width="200">
         <template #default="{ row }">{{ row.arrivalDate }} ~ {{ row.departureDate }}</template>
       </el-table-column>
-      <el-table-column label="账单合计" width="100">
-        <template #default="{ row }">¥{{ row.folioTotalAmount ?? 0 }}</template>
+      <el-table-column label="账单" width="140">
+        <template #default="{ row }">
+          应付 ¥{{ row.folioTotalAmount ?? 0 }}
+          <span v-if="(row.folioPaidAmount ?? 0) > 0" class="paid-hint"> / 已收 ¥{{ row.folioPaidAmount }}</span>
+        </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="260" fixed="right">
         <template #default="{ row }">
           <el-button v-if="canChangeRoom" link type="primary" @click="openChangeRoom(row)">换房</el-button>
+          <el-button v-if="canVoidCheckout" link type="danger" @click="openVoidCheckout(row)">退订（退款）</el-button>
           <el-button link type="primary" @click="openRemark(row)">备注</el-button>
         </template>
       </el-table-column>
@@ -51,31 +66,95 @@
         <el-button type="primary" @click="submitRemark">保存</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="voidVisible" title="退订（退款）— 提前退房" width="480px">
+      <el-alert type="info" :closable="false" show-icon title="将按计费截止日重算房费；多收部分可退款并记入当班。" />
+      <el-form label-width="110px" style="margin-top: 12px">
+        <el-form-item label="在住单号">
+          <span>{{ voidTarget?.stayNo }}</span>
+        </el-form-item>
+        <el-form-item label="计费截止日" required>
+          <el-date-picker
+            v-model="voidForm.chargeThroughDate"
+            type="date"
+            value-format="YYYY-MM-DD"
+            style="width: 100%"
+            @change="refreshVoidRefund"
+          />
+        </el-form-item>
+        <el-form-item v-if="voidPreview" label="应付预览">
+          <span>{{ voidPreview.nights }} 晚，应付 ¥{{ voidPreview.chargeable }}（已收 ¥{{ voidTarget?.folioPaidAmount ?? 0 }}）</span>
+        </el-form-item>
+        <el-form-item label="退款金额">
+          <el-input-number v-model="voidForm.refundAmount" :min="0" :precision="2" style="width: 100%" />
+          <div class="form-hint">已按「已收 − 应付」自动填写，可手工修改</div>
+        </el-form-item>
+        <el-form-item label="退款方式" required>
+          <el-select v-model="voidForm.refundMethod" style="width: 100%">
+            <el-option label="现金" value="CASH" />
+            <el-option label="微信" value="WECHAT" />
+            <el-option label="支付宝" value="ALIPAY" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="voidForm.remark" type="textarea" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="voidVisible = false">取消</el-button>
+        <el-button type="danger" :loading="saving" @click="submitVoidCheckout">确认退订</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
-import { listInHouse, changeRoom, updateStayRemark, type StayVO } from '@/api/stay'
+import { listInHouse, changeRoom, updateStayRemark, voidCheckout, type StayVO } from '@/api/stay'
 import { listAvailabilityApi, type AvailableRoomVO } from '@/api/reservation'
+import { getCurrentShift } from '@/api/shift'
 import { combineDateTime, DEFAULT_ARRIVAL_TIME, DEFAULT_DEPARTURE_TIME } from '@/utils/datetime'
+import { computeRefundPreview } from '@/utils/billing'
 
 const auth = useAuthStore()
 const canChangeRoom = auth.hasPermission('stay:change_room')
+const canVoidCheckout = auth.hasPermission('billing:checkout')
 const list = ref<StayVO[]>([])
+const guestNameQuery = ref('')
 const changeVisible = ref(false)
 const remarkVisible = ref(false)
+const voidVisible = ref(false)
+const saving = ref(false)
 const currentStay = ref<StayVO | null>(null)
+const voidTarget = ref<StayVO | null>(null)
 const changeForm = ref({ targetRoomId: undefined as number | undefined })
 const targetRooms = ref<AvailableRoomVO[]>([])
 const remarkText = ref('')
 
+const voidPreview = ref<{ nights: number; chargeable: number; refund: number } | null>(null)
+
+const voidForm = ref({
+  chargeThroughDate: '',
+  refundAmount: 0,
+  refundMethod: 'CASH',
+  remark: ''
+})
+
+function todayString() {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 onMounted(() => load())
 
 async function load() {
-  const res = await listInHouse()
+  const name = guestNameQuery.value.trim()
+  const res = await listInHouse(name || undefined)
   list.value = res.data.data || []
 }
 
@@ -131,6 +210,80 @@ async function submitRemark() {
   remarkVisible.value = false
   await load()
 }
+
+function refreshVoidRefund() {
+  const row = voidTarget.value
+  if (!row || !voidForm.value.chargeThroughDate) {
+    voidForm.value.refundAmount = 0
+    voidPreview.value = null
+    return
+  }
+  const preview = computeRefundPreview(
+    Number(row.folioPaidAmount ?? 0),
+    Number(row.agreedDailyRate ?? 0),
+    row.arrivalDate,
+    row.departureDate,
+    voidForm.value.chargeThroughDate
+  )
+  voidPreview.value = preview
+  voidForm.value.refundAmount = preview.refund
+}
+
+function openVoidCheckout(row: StayVO) {
+  voidTarget.value = row
+  voidForm.value = {
+    chargeThroughDate: todayString(),
+    refundAmount: 0,
+    refundMethod: 'CASH',
+    remark: ''
+  }
+  refreshVoidRefund()
+  voidVisible.value = true
+}
+
+async function submitVoidCheckout() {
+  if (!voidTarget.value || !voidForm.value.chargeThroughDate) {
+    ElMessage.warning('请选择计费截止日')
+    return
+  }
+  try {
+    const shiftRes = await getCurrentShift()
+    if (!shiftRes.data.data) {
+      ElMessage.warning('请先开班后再办理退订退款')
+      return
+    }
+  } catch {
+    ElMessage.warning('请先开班后再办理退订退款')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      '确认提前退房？客房将置为脏房，账单将按截止日结清。',
+      '退订（退款）',
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  saving.value = true
+  try {
+    const payload = {
+      chargeThroughDate: voidForm.value.chargeThroughDate,
+      refundMethod: voidForm.value.refundMethod,
+      remark: voidForm.value.remark,
+      refundAmount: voidForm.value.refundAmount ?? 0
+    }
+    await voidCheckout(voidTarget.value.id, payload)
+    ElMessage.success('已办理退订（退款）')
+    voidVisible.value = false
+    await load()
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    ElMessage.error(err.response?.data?.message || '操作失败')
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -139,5 +292,19 @@ async function submitRemark() {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
+}
+.toolbar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.paid-hint {
+  color: #909399;
+  font-size: 12px;
+}
+.form-hint {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
 }
 </style>

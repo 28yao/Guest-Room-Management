@@ -94,8 +94,8 @@ class RoomControllerTest {
         mockMvc.perform(get("/api/v1/rooms/board")
                         .param("date", "2026-05-24")
                         .header("Authorization", "Bearer " + adminToken))
-                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("VACANT_CLEAN"))
-                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].actualStatus").value("RESERVED"));
+                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("RESERVED"))
+                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].occupancyStatus").value("RESERVED"));
         mockMvc.perform(get("/api/v1/rooms/board")
                         .param("date", "2026-05-22")
                         .header("Authorization", "Bearer " + adminToken))
@@ -130,8 +130,8 @@ class RoomControllerTest {
         mockMvc.perform(get("/api/v1/rooms/board")
                         .param("date", "2026-05-24")
                         .header("Authorization", "Bearer " + adminToken))
-                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("VACANT_CLEAN"))
-                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].actualStatus").value("OCCUPIED"));
+                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("OCCUPIED"))
+                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].occupancyStatus").value("OCCUPIED"));
     }
 
     @Test
@@ -155,7 +155,8 @@ class RoomControllerTest {
                         .param("date", "2026-05-22")
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("RESERVED"))
-                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].actualStatus").value("DIRTY"));
+                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].cleanStatus").value("DIRTY"))
+                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].occupancyStatus").value("RESERVED"));
         mockMvc.perform(post("/api/v1/rooms/" + roomId + "/status/clean")
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -219,6 +220,40 @@ class RoomControllerTest {
     }
 
     @Test
+    void toggleCleanDirtySuccess() throws Exception {
+        Long roomId = createRoom();
+        mockMvc.perform(post("/api/v1/rooms/" + roomId + "/status/toggle-clean-dirty")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.status").value("VACANT"))
+                .andExpect(jsonPath("$.data.cleanStatus").value("DIRTY"));
+        mockMvc.perform(post("/api/v1/rooms/" + roomId + "/status/toggle-clean-dirty")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.status").value("VACANT"))
+                .andExpect(jsonPath("$.data.cleanStatus").value("CLEAN"));
+    }
+
+    @Test
+    void toggleCleanDirtyFromOccupied() throws Exception {
+        Long typeId = createRoomType();
+        Long roomId = createRoom(typeId, "803");
+        mockMvc.perform(post("/api/v1/rooms/" + roomId + "/status/force")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"targetStatus\":\"OCCUPIED\",\"reason\":\"test\"}"))
+                .andExpect(jsonPath("$.code").value(0));
+        mockMvc.perform(post("/api/v1/rooms/" + roomId + "/status/toggle-clean-dirty")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.status").value("OCCUPIED"))
+                .andExpect(jsonPath("$.data.cleanStatus").value("DIRTY"));
+    }
+
+    @Test
     void markDirtyThenCleanSuccess() throws Exception {
         Long roomId = createRoom();
         mockMvc.perform(post("/api/v1/rooms/" + roomId + "/status/dirty")
@@ -227,20 +262,22 @@ class RoomControllerTest {
                         .content("{}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
-                .andExpect(jsonPath("$.data.status").value("DIRTY"));
+                .andExpect(jsonPath("$.data.status").value("VACANT"))
+                .andExpect(jsonPath("$.data.cleanStatus").value("DIRTY"));
         mockMvc.perform(post("/api/v1/rooms/" + roomId + "/status/clean")
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
-                .andExpect(jsonPath("$.data.status").value("VACANT_CLEAN"));
+                .andExpect(jsonPath("$.data.status").value("VACANT"))
+                .andExpect(jsonPath("$.data.cleanStatus").value("CLEAN"));
     }
 
     private Long createRoom() throws Exception {
         long typeId = createRoomType();
         RoomRequest roomRequest = new RoomRequest();
-        roomRequest.setRoomNo("801");
+        roomRequest.setRoomNo("RM" + System.nanoTime());
         roomRequest.setRoomTypeId(typeId);
         roomRequest.setFloorNo(8);
         MvcResult roomResult = mockMvc.perform(post("/api/v1/rooms")

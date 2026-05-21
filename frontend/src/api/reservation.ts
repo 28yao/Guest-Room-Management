@@ -82,6 +82,13 @@ export function cancelReservationApi(id: number) {
   return request.post<{ data: ReservationVO }>(`/reservations/${id}/cancel`)
 }
 
+export function cancelWithRefundApi(
+  id: number,
+  data: { refundAmount: number; refundMethod: string; remark?: string }
+) {
+  return request.post<{ data: ReservationVO }>(`/reservations/${id}/cancel-with-refund`, data)
+}
+
 export function releaseReservationApi(id: number, noShow?: boolean) {
   return request.post<{ data: ReservationVO }>(`/reservations/${id}/release`, { noShow: !!noShow })
 }

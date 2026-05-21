@@ -1,6 +1,7 @@
 package com.hotel.grms.module.room.service;
 
 import com.hotel.grms.common.BusinessException;
+import com.hotel.grms.module.room.RoomCleanStatus;
 import com.hotel.grms.module.room.RoomStatus;
 import com.hotel.grms.module.room.dto.MaintenanceEndRequest;
 import com.hotel.grms.module.room.dto.MaintenanceStartRequest;
@@ -55,7 +56,7 @@ public class RoomMaintenanceService {
         if (open != null) {
             throw new BusinessException(40016, "该客房已在维修中");
         }
-        Room room = roomService.transitionStatus(roomId, RoomStatus.OUT_OF_ORDER, request.getVersion());
+        Room room = roomService.transitionOccupancy(roomId, RoomStatus.OUT_OF_ORDER, request.getVersion());
         RoomMaintenanceLog log = new RoomMaintenanceLog();
         log.setRoomId(roomId);
         log.setReason(request.getReason());
@@ -75,7 +76,9 @@ public class RoomMaintenanceService {
      */
     @Transactional(rollbackFor = Exception.class)
     public Room endMaintenance(Long roomId, MaintenanceEndRequest request) {
-        roomStateMachine.assertMaintenanceEndTarget(request.getTargetStatus());
+        String cleanTarget = resolveMaintenanceEndClean(request.getTargetStatus());
+        roomStateMachine.assertMaintenanceEndOccupancy(RoomStatus.VACANT);
+        roomStateMachine.assertMaintenanceEndClean(cleanTarget);
         RoomMaintenanceLog open = maintenanceLogMapper.selectOpenByRoomId(roomId);
         if (open == null) {
             throw new BusinessException(40017, "该客房无进行中的维修记录");
@@ -84,9 +87,21 @@ public class RoomMaintenanceService {
         if (!RoomStatus.OUT_OF_ORDER.equals(room.getStatus())) {
             throw new BusinessException(40001, "当前房态不是维修中");
         }
-        room = roomService.transitionStatus(roomId, request.getTargetStatus(), request.getVersion());
+        room = roomService.transitionOccupancy(roomId, RoomStatus.VACANT, request.getVersion());
+        if (RoomCleanStatus.DIRTY.equals(cleanTarget)) {
+            room = roomService.markDirty(roomId, null);
+        } else {
+            room = roomService.markClean(roomId, null);
+        }
         open.setEndedAt(LocalDateTime.now());
         maintenanceLogMapper.updateById(open);
         return room;
+    }
+
+    private String resolveMaintenanceEndClean(String targetStatus) {
+        if (RoomCleanStatus.DIRTY.equals(targetStatus) || RoomStatus.DIRTY.equals(targetStatus)) {
+            return RoomCleanStatus.DIRTY;
+        }
+        return RoomCleanStatus.CLEAN;
     }
 }

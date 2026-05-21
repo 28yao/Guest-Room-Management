@@ -29,7 +29,7 @@ public interface RoomBoardMapper {
      */
     @Select("<script>"
             + "SELECT r.id AS room_id, r.room_no, r.room_type_id, rt.name AS room_type_name, "
-            + "r.floor_no, r.status, r.version, rt.rack_rate, "
+            + "r.floor_no, r.status, r.clean_status, r.version, rt.rack_rate, "
             + "CASE WHEN EXISTS (SELECT 1 FROM reservation res WHERE res.room_id = r.id "
             + "AND res.status IN ('CONFIRMED','PENDING') "
             + "AND CAST(res.arrival_at AS DATE) = #{viewDate}) "

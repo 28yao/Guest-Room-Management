@@ -1,6 +1,7 @@
 package com.hotel.grms.module.room.service;
 
 import com.hotel.grms.module.room.DailyTag;
+import com.hotel.grms.module.room.RoomCleanStatus;
 import com.hotel.grms.module.room.RoomStatus;
 import com.hotel.grms.module.room.dto.RoomBoardItemDto;
 import com.hotel.grms.module.room.dto.RoomBoardRowDto;
@@ -15,7 +16,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 房态图查询服务，组装指定日期叠加标签与展示房态。
+ * 房态图查询服务：占用态与保洁态分维展示。
  *
  * @author liuxinsi
  * @date 2026-05-21
@@ -49,22 +50,34 @@ public class RoomBoardService {
     }
 
     private RoomBoardItemDto toItem(RoomBoardRowDto row) {
+        String occupancy = RoomStatus.normalizeOccupancy(row.getStatus());
+        String clean = resolveCleanStatus(row);
         RoomBoardItemDto item = new RoomBoardItemDto();
         item.setId(row.getRoomId());
         item.setRoomNo(row.getRoomNo());
         item.setRoomTypeId(row.getRoomTypeId());
         item.setRoomTypeName(row.getRoomTypeName());
         item.setFloorNo(row.getFloorNo());
-        item.setStatus(resolveDisplayStatus(row));
-        item.setActualStatus(row.getStatus());
+        item.setOccupancyStatus(occupancy);
+        item.setCleanStatus(clean);
+        item.setStatus(resolveDisplayOccupancy(row, occupancy));
         item.setVersion(row.getVersion());
         item.setRackRate(row.getRackRate());
         item.setDailyTags(buildTags(row));
         return item;
     }
 
-    private String resolveDisplayStatus(RoomBoardRowDto row) {
-        String dbStatus = row.getStatus();
+    private String resolveCleanStatus(RoomBoardRowDto row) {
+        if (row.getCleanStatus() != null && !row.getCleanStatus().isEmpty()) {
+            return row.getCleanStatus();
+        }
+        if (RoomStatus.DIRTY.equals(row.getStatus())) {
+            return RoomCleanStatus.DIRTY;
+        }
+        return RoomCleanStatus.CLEAN;
+    }
+
+    private String resolveDisplayOccupancy(RoomBoardRowDto row, String occupancy) {
         boolean reservedOnView = row.getReservedOnViewDate() != null && row.getReservedOnViewDate() == 1;
         boolean inHouseOnView = row.getInHouseOnViewDate() != null && row.getInHouseOnViewDate() == 1;
         if (inHouseOnView) {
@@ -73,13 +86,7 @@ public class RoomBoardService {
         if (reservedOnView) {
             return RoomStatus.RESERVED;
         }
-        if (RoomStatus.RESERVED.equals(dbStatus)) {
-            return RoomStatus.VACANT_CLEAN;
-        }
-        if (RoomStatus.OCCUPIED.equals(dbStatus)) {
-            return RoomStatus.VACANT_CLEAN;
-        }
-        return dbStatus;
+        return occupancy;
     }
 
     private List<String> buildTags(RoomBoardRowDto row) {

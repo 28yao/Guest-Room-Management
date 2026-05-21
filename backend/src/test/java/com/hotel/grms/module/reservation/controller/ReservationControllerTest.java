@@ -100,7 +100,7 @@ class ReservationControllerTest {
     @Test
     void releaseRestoresVacantClean() throws Exception {
         Long typeId = createRoomType();
-        Long roomId = createRoom(typeId, "903");
+        Long roomId = createRoom(typeId, "913");
         Long reservationId = createReservation(typeId);
         AssignRoomRequest assign = new AssignRoomRequest();
         assign.setRoomId(roomId);
@@ -118,7 +118,7 @@ class ReservationControllerTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.status").value("RELEASED"));
         mockMvc.perform(get("/api/v1/rooms").header("Authorization", "Bearer " + adminToken))
-                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("VACANT_CLEAN"));
+                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("VACANT"));
     }
 
     @Test

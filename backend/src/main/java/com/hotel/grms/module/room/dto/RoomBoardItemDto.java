@@ -16,8 +16,12 @@ public class RoomBoardItemDto {
     private Long roomTypeId;
     private String roomTypeName;
     private Integer floorNo;
+    /** 查看日占用展示态（在住/预订/空房/维修） */
     private String status;
-    private String actualStatus;
+    /** 库内占用态 */
+    private String occupancyStatus;
+    /** 库内保洁态 */
+    private String cleanStatus;
     private Integer version;
     private BigDecimal rackRate;
     private List<String> dailyTags;
@@ -70,12 +74,20 @@ public class RoomBoardItemDto {
         this.status = status;
     }
 
-    public String getActualStatus() {
-        return actualStatus;
+    public String getOccupancyStatus() {
+        return occupancyStatus;
     }
 
-    public void setActualStatus(String actualStatus) {
-        this.actualStatus = actualStatus;
+    public void setOccupancyStatus(String occupancyStatus) {
+        this.occupancyStatus = occupancyStatus;
+    }
+
+    public String getCleanStatus() {
+        return cleanStatus;
+    }
+
+    public void setCleanStatus(String cleanStatus) {
+        this.cleanStatus = cleanStatus;
     }
 
     public Integer getVersion() {

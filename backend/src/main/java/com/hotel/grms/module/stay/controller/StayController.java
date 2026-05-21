@@ -5,6 +5,7 @@ import com.hotel.grms.module.stay.dto.ChangeRoomRequest;
 import com.hotel.grms.module.stay.dto.CheckInFromReservationRequest;
 import com.hotel.grms.module.stay.dto.StayRemarkRequest;
 import com.hotel.grms.module.stay.dto.StayResponse;
+import com.hotel.grms.module.stay.dto.VoidCheckoutRequest;
 import com.hotel.grms.module.stay.dto.WalkInCheckInRequest;
 import com.hotel.grms.module.stay.service.StayService;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -64,9 +66,15 @@ public class StayController {
      *
      * @return 列表
      */
+    /**
+     * 在住列表，支持客人姓名模糊查询。
+     *
+     * @param guestName 客人姓名（可选）
+     * @return 列表
+     */
     @GetMapping("/in-house")
-    public R<List<StayResponse>> inHouse() {
-        return R.ok(stayService.listInHouse());
+    public R<List<StayResponse>> inHouse(@RequestParam(required = false) String guestName) {
+        return R.ok(stayService.listInHouse(guestName));
     }
 
     /**
@@ -103,5 +111,18 @@ public class StayController {
     @PutMapping("/{id}/remark")
     public R<StayResponse> remark(@PathVariable Long id, @RequestBody StayRemarkRequest request) {
         return R.ok(stayService.updateRemark(id, request));
+    }
+
+    /**
+     * 在住提前退房（退订退款）。
+     *
+     * @param id      在住单 ID
+     * @param request 请求体
+     * @return 已退房详情
+     */
+    @PostMapping("/{id}/void-checkout")
+    @PreAuthorize("hasAuthority('billing:checkout')")
+    public R<StayResponse> voidCheckout(@PathVariable Long id, @Validated @RequestBody VoidCheckoutRequest request) {
+        return R.ok(stayService.voidCheckout(id, request));
     }
 }

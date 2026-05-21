@@ -21,6 +21,7 @@ export interface StayVO {
   checkInAt?: string
   folioId?: number
   folioTotalAmount?: number
+  folioPaidAmount?: number
 }
 
 export interface WalkInForm {
@@ -52,8 +53,25 @@ export function checkInFromReservation(data: ReservationCheckInForm) {
   return request.post<{ data: StayVO }>('/stays/check-in-from-reservation', data)
 }
 
-export function listInHouse() {
-  return request.get<{ data: StayVO[] }>('/stays/in-house')
+export function getStay(id: number) {
+  return request.get<{ data: StayVO }>(`/stays/${id}`)
+}
+
+export function listInHouse(guestName?: string) {
+  return request.get<{ data: StayVO[] }>('/stays/in-house', {
+    params: guestName ? { guestName } : undefined
+  })
+}
+
+export interface VoidCheckoutForm {
+  chargeThroughDate?: string
+  refundAmount?: number
+  refundMethod: string
+  remark?: string
+}
+
+export function voidCheckout(stayId: number, data: VoidCheckoutForm) {
+  return request.post<{ data: StayVO }>(`/stays/${stayId}/void-checkout`, data)
 }
 
 export function changeRoom(stayId: number, data: { targetRoomId: number; targetRoomVersion?: number }) {

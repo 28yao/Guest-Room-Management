@@ -158,15 +158,23 @@ operation_log (业务_id 多态)
 
 ### 3.2 枚举定义（前后端共用约定）
 
-**客房主状态 `room.status`（互斥）**
+**占用态 `room.status`**
 
-| 枚举值 | 中文 | 可入住 | Spec |
-|--------|------|--------|------|
-| `VACANT_CLEAN` | 空净 | Y | §4.2 |
-| `RESERVED` | 预订锁定 | N | §4.2 |
-| `OCCUPIED` | 在住 | N | §4.2 |
-| `DIRTY` | 脏房 | N | §4.2 |
-| `OUT_OF_ORDER` | 维修 | N | §4.2 |
+| 枚举值 | 中文 | Spec |
+|--------|------|------|
+| `VACANT` | 空房 | §4.2 |
+| `RESERVED` | 预订锁定 | §4.2 |
+| `OCCUPIED` | 在住 | §4.2 |
+| `OUT_OF_ORDER` | 维修 | §4.2 |
+
+**保洁态 `room.clean_status`**
+
+| 枚举值 | 中文 | Spec |
+|--------|------|------|
+| `CLEAN` | 净 | §4.2 |
+| `DIRTY` | 脏 | §4.2 |
+
+> 迁移前历史值 `VACANT_CLEAN`/`DIRTY` 作占用态已废弃，由 V14 脚本拆分。
 
 **当日叠加标签 `room.daily_tags`（计算字段，非持久化主状态）**
 
@@ -181,9 +189,9 @@ operation_log (业务_id 多态)
 |------|--------|
 | 查看日落在在住 `arrival_date~departure_date` 内 | `OCCUPIED`（优先于库内脏/空净） |
 | 查看日落在有效预订占用区间且已 `room_id` | `RESERVED`（优先于库内脏/空净） |
-| 库内 `RESERVED` 但查看日不在上述区间 | `VACANT_CLEAN`（展示用） |
-| 库内 `OCCUPIED` 但查看日不在在住区间 | `VACANT_CLEAN`（展示用） |
-| 其他 | 与库内 `room.status` 一致 |
+| 库内 `RESERVED` 但查看日不在上述区间 | `VACANT`（展示用） |
+| 库内 `OCCUPIED` 但查看日不在在住区间 | `VACANT`（展示用） |
+| 其他 | 与库内占用态一致 |
 
 占用区间重叠判定（排房/可售）：`existing.arrival_at < new.departure_at + 1h` 且 `new.arrival_at < existing.departure_at + 1h`。
 
@@ -467,7 +475,7 @@ CREATE TABLE shift_session (
 |--------|------|------|------|------|
 | API-ROOM-01 | CRUD | `/room-types` | `room:type:manage` | §5.1 |
 | API-ROOM-02 | CRUD | `/rooms` | `room:manage` | §5.2 |
-| API-ROOM-03 | GET | `/rooms/board` | 登录 | §5.3；`status` 为展示态，`actualStatus` 为库内态；`daily_tags`；`date` 默认当天 |
+| API-ROOM-03 | GET | `/rooms/board` | 登录 | §5.3；`status` 展示占用态；`occupancyStatus`+`cleanStatus` 库内双维；`daily_tags`；`date` 默认当天 |
 | API-ROOM-03b | GET | `/rooms/floors` | 登录 | 全部楼层列表（房态图筛选用） |
 | API-ROOM-03c | GET | `/rooms/{id}/schedule?fromDate=` | 登录 | 客房日程：当前及未来预订/在住；`occupiedOnViewDate` |
 | API-ROOM-04 | POST | `/rooms/{id}/maintenance` | `room:status:maintenance` | BR-11 |
@@ -486,6 +494,7 @@ CREATE TABLE shift_session (
 | API-RES-04 | POST | `/reservations/{id}/assign-room` | 同上 | §6.3、BR-01 |
 | API-RES-05 | POST | `/reservations/{id}/cancel` | 同上 | §6.5 |
 | API-RES-06 | POST | `/reservations/{id}/release` | 同上 | §6.4、BR-03 |
+| API-RES-06a | POST | `/reservations/{id}/cancel-with-refund` | 同上 | §6.5 退订+可选退款 |
 | API-RES-07 | GET | `/reservations/availability` | 同上 | BR-01；`arrivalAt`/`departureAt` 或日期+默认时刻 |
 
 ### 6.5 在住 — MOD-STAY
@@ -498,6 +507,8 @@ CREATE TABLE shift_session (
 | API-STAY-04 | POST | `/stays/{id}/change-room` | `stay:change_room` | §7.6 |
 | API-STAY-05 | PUT | `/stays/{id}/departure-date` | `reservation:manage` | 改期（未结） |
 | API-STAY-06 | PUT | `/stays/{id}/remark` | FRONT | §7.7 备注 |
+| API-STAY-07 | GET | `/stays/in-house?guestName=` | 登录 | §7.9 姓名模糊查 |
+| API-STAY-08 | POST | `/stays/{id}/void-checkout` | `billing:checkout` | §7.9 提前退房+退款 |
 
 ### 6.6 账单 — MOD-BILL
 

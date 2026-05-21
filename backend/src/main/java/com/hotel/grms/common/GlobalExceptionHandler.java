@@ -31,7 +31,8 @@ public class GlobalExceptionHandler {
                     + "sql/V7__reservation_datetime.sql（缺 arrival_at/departure_at 列）、"
                     + "sql/V8__stay_order_guest.sql（缺 stay_order.guest_name 列）、"
                     + "sql/V9__folio_line_billing.sql（缺 folio_line.quantity/unit_price 列）、"
-                    + "sql/V10__folio_timestamps.sql（缺 folio.created_at/updated_at 列），"
+                    + "sql/V10__folio_timestamps.sql（缺 folio.created_at/updated_at 列）、"
+                    + "sql/V14__room_clean_status.sql（缺 room.clean_status 列），"
                     + "或重新执行 sql/V1、V2 全量建库";
 
     /**
@@ -163,6 +164,9 @@ public class GlobalExceptionHandler {
                 }
                 if (message.contains("created_at") || message.contains("updated_at")) {
                     return "账单主表结构与当前版本不一致，请在 grms 库执行 sql/V10__folio_timestamps.sql（缺 folio.created_at/updated_at 列；换房重算常见），或重新执行 sql/V1、V2 全量建库";
+                }
+                if (message.contains("clean_status")) {
+                    return "客房表结构与当前版本不一致，请在 grms 库执行 sql/V14__room_clean_status.sql（缺 room.clean_status 列），执行后重启后端";
                 }
                 return SCHEMA_MISMATCH_MIGRATION_HINT;
             }

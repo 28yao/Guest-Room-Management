@@ -18,7 +18,10 @@ public class RoomScheduleDto {
     private Long roomTypeId;
     private String roomTypeName;
     private BigDecimal rackRate;
-    private String actualStatus;
+    /** 库内占用态 */
+    private String occupancyStatus;
+    /** 库内保洁态 */
+    private String cleanStatus;
     private Integer version;
     private LocalDate viewDate;
     /** 查看日是否已有预订或在住占用 */
@@ -65,12 +68,20 @@ public class RoomScheduleDto {
         this.rackRate = rackRate;
     }
 
-    public String getActualStatus() {
-        return actualStatus;
+    public String getOccupancyStatus() {
+        return occupancyStatus;
     }
 
-    public void setActualStatus(String actualStatus) {
-        this.actualStatus = actualStatus;
+    public void setOccupancyStatus(String occupancyStatus) {
+        this.occupancyStatus = occupancyStatus;
+    }
+
+    public String getCleanStatus() {
+        return cleanStatus;
+    }
+
+    public void setCleanStatus(String cleanStatus) {
+        this.cleanStatus = cleanStatus;
     }
 
     public Integer getVersion() {

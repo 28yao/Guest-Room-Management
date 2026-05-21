@@ -1,61 +1,70 @@
 package com.hotel.grms.module.room.state;
 
 import com.hotel.grms.common.BusinessException;
+import com.hotel.grms.module.room.RoomCleanStatus;
 import com.hotel.grms.module.room.RoomStatus;
+import com.hotel.grms.module.room.entity.Room;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * 客房状态机单元测试。
+ * 占用态状态机单元测试。
  *
  * @author liuxinsi
  * @date 2026-05-21
  */
 class RoomStateMachineTest {
 
-    private final RoomStateMachine stateMachine = new RoomStateMachine();
+    private final RoomStateMachine machine = new RoomStateMachine();
 
     @Test
-    void vacantCleanToReservedAllowed() {
-        assertDoesNotThrow(() -> stateMachine.assertNormalTransition(
-                RoomStatus.VACANT_CLEAN, RoomStatus.RESERVED));
+    void vacantToReservedAllowed() {
+        assertDoesNotThrow(() -> machine.assertOccupancyTransition(
+                RoomStatus.VACANT, RoomStatus.RESERVED));
     }
 
     @Test
-    void occupiedToDirtyAllowed() {
-        assertDoesNotThrow(() -> stateMachine.assertNormalTransition(
-                RoomStatus.OCCUPIED, RoomStatus.DIRTY));
+    void vacantToOccupiedAllowed() {
+        assertDoesNotThrow(() -> machine.assertOccupancyTransition(
+                RoomStatus.VACANT, RoomStatus.OCCUPIED));
     }
 
     @Test
-    void vacantCleanToDirtyAllowed() {
-        assertDoesNotThrow(() -> stateMachine.assertNormalTransition(
-                RoomStatus.VACANT_CLEAN, RoomStatus.DIRTY));
+    void occupiedToVacantAllowed() {
+        assertDoesNotThrow(() -> machine.assertOccupancyTransition(
+                RoomStatus.OCCUPIED, RoomStatus.VACANT));
     }
 
     @Test
-    void reservedToDirtyAllowed() {
-        assertDoesNotThrow(() -> stateMachine.assertNormalTransition(
-                RoomStatus.RESERVED, RoomStatus.DIRTY));
+    void occupiedToReservedRejected() {
+        assertThrows(BusinessException.class, () -> machine.assertOccupancyTransition(
+                RoomStatus.OCCUPIED, RoomStatus.RESERVED));
     }
 
     @Test
-    void dirtyToVacantCleanAllowed() {
-        assertDoesNotThrow(() -> stateMachine.assertNormalTransition(
-                RoomStatus.DIRTY, RoomStatus.VACANT_CLEAN));
+    void checkInAllowedWhenVacantClean() {
+        Room room = room(RoomStatus.VACANT, RoomCleanStatus.CLEAN);
+        assertDoesNotThrow(() -> machine.assertCheckInAllowed(room));
     }
 
     @Test
-    void occupiedToVacantCleanRejected() {
-        assertThrows(BusinessException.class, () -> stateMachine.assertNormalTransition(
-                RoomStatus.OCCUPIED, RoomStatus.VACANT_CLEAN));
+    void checkInRejectedWhenDirty() {
+        Room room = room(RoomStatus.VACANT, RoomCleanStatus.DIRTY);
+        assertThrows(BusinessException.class, () -> machine.assertCheckInAllowed(room));
     }
 
     @Test
-    void anyToOutOfOrderAllowed() {
-        assertDoesNotThrow(() -> stateMachine.assertNormalTransition(
-                RoomStatus.OCCUPIED, RoomStatus.OUT_OF_ORDER));
+    void checkInAllowedWhenReservedClean() {
+        Room room = room(RoomStatus.RESERVED, RoomCleanStatus.CLEAN);
+        assertDoesNotThrow(() -> machine.assertCheckInAllowed(room));
+    }
+
+    private Room room(String occupancy, String clean) {
+        Room room = new Room();
+        room.setStatus(occupancy);
+        room.setCleanStatus(clean);
+        return room;
     }
 }

@@ -23,14 +23,25 @@
         v-for="room in items"
         :key="room.id"
         class="room-card"
-        :style="{ borderColor: statusColor(room.status) }"
+        :style="{ borderColor: occupancyColor(room.status) }"
         @click="openActions(room)"
       >
         <div class="room-no">{{ room.roomNo }}</div>
         <div class="room-type">{{ room.roomTypeName }}</div>
-        <el-tag size="small" :color="statusColor(room.status)" effect="dark">
-          {{ statusLabel(room.status) }}
-        </el-tag>
+        <div class="card-tags">
+          <el-tag size="small" :color="occupancyColor(room.status)" effect="dark">
+            {{ occupancyLabel(room.status) }}
+          </el-tag>
+          <el-tag size="small" :color="cleanColor(room.cleanStatus)" effect="plain">
+            {{ cleanLabel(room.cleanStatus) }}
+          </el-tag>
+        </div>
+        <div
+          v-if="room.status !== room.occupancyStatus"
+          class="card-actual"
+        >
+          库内 {{ occupancyLabel(room.occupancyStatus) }} · {{ cleanLabel(room.cleanStatus) }}
+        </div>
         <div class="tags">
           <el-tag v-if="room.dailyTags?.includes('EXPECTED_ARRIVAL')" size="small" type="warning">预抵</el-tag>
           <el-tag v-if="room.dailyTags?.includes('EXPECTED_DEPARTURE')" size="small" type="danger">预离</el-tag>
@@ -41,8 +52,10 @@
     <el-dialog v-model="actionVisible" :title="`客房 ${selected?.roomNo || ''}`" width="720px" @open="onDialogOpen">
       <p class="room-meta">
         <span>{{ selected?.roomTypeName }}</span>
-        <el-tag size="small" class="meta-tag">展示 {{ statusLabel(selected?.status || '') }}</el-tag>
-        <el-tag size="small" type="info">库内 {{ statusLabel(schedule?.actualStatus || selected?.actualStatus || '') }}</el-tag>
+        <el-tag size="small" class="meta-tag">展示 {{ occupancyLabel(selected?.status || '') }}</el-tag>
+        <el-tag size="small" type="info">
+          库内 {{ occupancyLabel(roomOccupancyStatus) }} · {{ cleanLabel(roomCleanStatus) }}
+        </el-tag>
         <span class="meta-date">查看日 {{ viewDate }}</span>
       </p>
 
@@ -63,9 +76,33 @@
         <el-table-column label="状态" width="88">
           <template #default="{ row }">{{ orderStatusLabel(row) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="80" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <el-button v-if="row.editable" link type="primary" @click="openEditOrder(row)">修改</el-button>
+            <el-button
+              v-if="row.orderType === 'STAY' && row.status === 'IN_HOUSE' && canChangeRoom"
+              link
+              type="primary"
+              @click="openChangeRoomFromOrder(row)"
+            >
+              换房
+            </el-button>
+            <el-button
+              v-if="row.orderType === 'STAY' && row.status === 'IN_HOUSE' && canVoidCheckout"
+              link
+              type="danger"
+              @click="openVoidFromOrder(row)"
+            >
+              退订（退款）
+            </el-button>
+            <el-button
+              v-if="row.orderType === 'RESERVATION' && canManageRes && isResCancellable(row.status)"
+              link
+              type="danger"
+              @click="openCancelRefundFromOrder(row)"
+            >
+              退订（退款）
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -81,47 +118,50 @@
           快速预订
         </el-button>
         <el-button
-          v-if="auth.hasPermission('stay:checkin') && schedule?.actualStatus === 'VACANT_CLEAN'"
+          v-if="auth.hasPermission('stay:checkin') && canWalkIn"
           type="success"
           size="small"
           @click="openQuickWalkIn"
         >
           快速 Walk-in 入住
         </el-button>
-        <span v-if="auth.hasPermission('stay:checkin') && schedule?.actualStatus !== 'VACANT_CLEAN'" class="hint-inline">
-          仅空净房可 Walk-in（当前库内 {{ statusLabel(schedule?.actualStatus || '') }}）
+        <span v-if="auth.hasPermission('stay:checkin') && !canWalkIn" class="hint-inline">
+          仅空房/预订且净房可 Walk-in（当前库内 {{ occupancyLabel(roomOccupancyStatus) }} ·
+          {{ cleanLabel(roomCleanStatus) }}）
         </span>
+      </div>
+
+      <el-divider />
+      <div class="section-title">快捷操作</div>
+      <div class="quick-status-row">
+        <el-button
+          v-if="canToggleCleanDirty"
+          :type="roomCleanStatus === 'DIRTY' ? 'success' : 'warning'"
+          size="large"
+          :loading="saving || scheduleLoading"
+          @click="toggleCleanDirty"
+        >
+          {{ cleanDirtyToggleLabel }}
+        </el-button>
+        <span v-else-if="scheduleLoading" class="hint-inline">加载客房状态…</span>
+        <span v-else class="hint-inline">无置脏/置净或强制改态权限，无法切换保洁态</span>
       </div>
 
       <el-divider />
       <div class="section-title">房态操作</div>
       <el-button
-        v-if="auth.hasPermission('room:status:maintenance') && selected?.actualStatus !== 'OUT_OF_ORDER'"
+        v-if="auth.hasPermission('room:status:maintenance') && roomOccupancyStatus !== 'OUT_OF_ORDER'"
         type="warning"
         @click="openMaintenance"
       >
         设维修
       </el-button>
       <el-button
-        v-if="auth.hasPermission('room:status:maintenance') && selected?.actualStatus === 'OUT_OF_ORDER'"
+        v-if="auth.hasPermission('room:status:maintenance') && roomOccupancyStatus === 'OUT_OF_ORDER'"
         type="success"
         @click="openEndMaintenance"
       >
         结束维修
-      </el-button>
-      <el-button
-        v-if="auth.hasPermission('room:status:dirty') && canMarkDirty(selected?.actualStatus)"
-        type="warning"
-        @click="submitMarkDirty"
-      >
-        设为脏房
-      </el-button>
-      <el-button
-        v-if="auth.hasPermission('room:status:clean') && canMarkClean(selected?.actualStatus)"
-        type="success"
-        @click="submitMarkClean"
-      >
-        设为空净
       </el-button>
       <el-button v-if="auth.hasPermission('room:status:force')" type="danger" @click="openForce">
         强制改态
@@ -153,7 +193,7 @@
         <el-form-item label="恢复为">
           <el-radio-group v-model="endMaintForm.targetStatus">
             <el-radio label="DIRTY">脏房</el-radio>
-            <el-radio label="VACANT_CLEAN">空净</el-radio>
+            <el-radio label="CLEAN">净房</el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
@@ -282,6 +322,91 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="boardChangeVisible" title="换房" width="420px">
+      <el-form label-width="90px">
+        <el-form-item label="在住单">
+          <span>{{ boardChangeOrder?.orderNo }}</span>
+        </el-form-item>
+        <el-form-item label="目标客房" required>
+          <el-select v-model="boardChangeForm.targetRoomId" style="width: 100%" @focus="loadBoardChangeRooms">
+            <el-option
+              v-for="r in boardChangeRooms"
+              :key="r.roomId"
+              :label="`${r.roomNo} (${r.roomTypeName})`"
+              :value="r.roomId"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="boardChangeVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="submitBoardChangeRoom">确认换房</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="boardVoidVisible" title="退订（退款）— 在住提前退房" width="480px">
+      <el-form label-width="110px">
+        <el-form-item label="在住单">
+          <span>{{ boardVoidOrder?.orderNo }}</span>
+        </el-form-item>
+        <el-form-item label="计费截止日" required>
+          <el-date-picker
+            v-model="boardVoidForm.chargeThroughDate"
+            type="date"
+            value-format="YYYY-MM-DD"
+            style="width: 100%"
+            @change="refreshBoardVoidRefund"
+          />
+        </el-form-item>
+        <el-form-item v-if="boardVoidPreview" label="应付预览">
+          <span>{{ boardVoidPreview.nights }} 晚 × 房价，应付 ¥{{ boardVoidPreview.chargeable }}</span>
+        </el-form-item>
+        <el-form-item label="退款金额">
+          <el-input-number v-model="boardVoidForm.refundAmount" :min="0" :precision="2" style="width: 100%" />
+          <div class="form-hint">已按「已收 − 应付」自动填写，可手工修改</div>
+        </el-form-item>
+        <el-form-item label="退款方式" required>
+          <el-select v-model="boardVoidForm.refundMethod" style="width: 100%">
+            <el-option label="现金" value="CASH" />
+            <el-option label="微信" value="WECHAT" />
+            <el-option label="支付宝" value="ALIPAY" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="boardVoidForm.remark" type="textarea" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="boardVoidVisible = false">取消</el-button>
+        <el-button type="danger" :loading="saving" @click="submitBoardVoid">确认退订</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="boardCancelResVisible" title="退订（退款）— 取消预订" width="440px">
+      <el-form label-width="100px">
+        <el-form-item label="预订单号">
+          <span>{{ boardCancelResOrder?.orderNo }}</span>
+        </el-form-item>
+        <el-form-item label="退款金额">
+          <el-input-number v-model="boardCancelResForm.refundAmount" :min="0" :precision="2" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="退款方式" required>
+          <el-select v-model="boardCancelResForm.refundMethod" style="width: 100%">
+            <el-option label="现金" value="CASH" />
+            <el-option label="微信" value="WECHAT" />
+            <el-option label="支付宝" value="ALIPAY" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="boardCancelResForm.remark" type="textarea" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="boardCancelResVisible = false">取消</el-button>
+        <el-button type="danger" :loading="saving" @click="submitBoardCancelRefund">确认退订</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="forceVisible" title="强制改房态" width="440px">
       <el-alert type="warning" title="此操作将跳过正常状态机，请填写原因" :closable="false" show-icon />
       <el-form label-width="80px" style="margin-top: 12px">
@@ -303,7 +428,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import {
@@ -315,10 +440,11 @@ import {
   forceRoomStatusApi,
   markRoomDirtyApi,
   markRoomCleanApi,
-  MARK_DIRTY_FROM,
-  MARK_CLEAN_FROM,
-  ROOM_STATUS_LABEL,
-  ROOM_STATUS_COLOR,
+  toggleCleanDirtyApi,
+  OCCUPANCY_STATUS_LABEL,
+  OCCUPANCY_STATUS_COLOR,
+  CLEAN_STATUS_LABEL,
+  CLEAN_STATUS_COLOR,
   type RoomBoardItem,
   type RoomScheduleVO,
   type RoomScheduleOrderVO
@@ -328,14 +454,20 @@ import {
   RES_STATUS_LABEL,
   createReservationApi,
   updateReservationApi,
-  assignRoomApi
+  assignRoomApi,
+  cancelWithRefundApi,
+  listAvailabilityApi
 } from '@/api/reservation'
 import { getCurrentShift } from '@/api/shift'
-import { walkInCheckIn } from '@/api/stay'
-import { updateStayRemark } from '@/api/stay'
+import { walkInCheckIn, changeRoom, voidCheckout, updateStayRemark, getStay, type StayVO } from '@/api/stay'
+import { computeRefundPreview } from '@/utils/billing'
+import type { AvailableRoomVO } from '@/api/reservation'
 import { combineDateTime, DEFAULT_ARRIVAL_TIME, DEFAULT_DEPARTURE_TIME } from '@/utils/datetime'
 
 const auth = useAuthStore()
+const canChangeRoom = auth.hasPermission('stay:change_room')
+const canVoidCheckout = auth.hasPermission('billing:checkout')
+const canManageRes = auth.hasPermission('reservation:manage')
 const items = ref<RoomBoardItem[]>([])
 const floors = ref<number[]>([])
 const floorFilter = ref<number | undefined>()
@@ -356,11 +488,32 @@ const quickWalkVisible = ref(false)
 const maintVisible = ref(false)
 const endMaintVisible = ref(false)
 const forceVisible = ref(false)
+const boardChangeVisible = ref(false)
+const boardVoidVisible = ref(false)
+const boardCancelResVisible = ref(false)
+const boardChangeOrder = ref<RoomScheduleOrderVO | null>(null)
+const boardVoidOrder = ref<RoomScheduleOrderVO | null>(null)
+const boardVoidStay = ref<StayVO | null>(null)
+const boardVoidPreview = ref<{ nights: number; chargeable: number; refund: number } | null>(null)
+const boardCancelResOrder = ref<RoomScheduleOrderVO | null>(null)
+const boardChangeRooms = ref<AvailableRoomVO[]>([])
+const boardChangeForm = ref({ targetRoomId: undefined as number | undefined })
+const boardVoidForm = reactive({
+  chargeThroughDate: '',
+  refundAmount: undefined as number | undefined,
+  refundMethod: 'CASH',
+  remark: ''
+})
+const boardCancelResForm = reactive({
+  refundAmount: 0,
+  refundMethod: 'CASH',
+  remark: ''
+})
 const saving = ref(false)
 
 const maintForm = reactive({ reason: '', expectedRecoveryAt: '' })
 const endMaintForm = reactive({ targetStatus: 'DIRTY' })
-const forceForm = reactive({ targetStatus: 'VACANT_CLEAN', reason: '' })
+const forceForm = reactive({ targetStatus: 'VACANT', reason: '' })
 
 const resForm = reactive({
   guestName: '',
@@ -394,12 +547,87 @@ const quickWalkForm = reactive({
   remark: ''
 })
 
-function statusLabel(s: string) {
-  return ROOM_STATUS_LABEL[s] || s
+function occupancyLabel(s: string) {
+  return OCCUPANCY_STATUS_LABEL[s] || s
 }
 
-function statusColor(s: string) {
-  return ROOM_STATUS_COLOR[s] || '#dcdfe6'
+function occupancyColor(s: string) {
+  return OCCUPANCY_STATUS_COLOR[s] || '#dcdfe6'
+}
+
+function cleanLabel(s: string) {
+  return CLEAN_STATUS_LABEL[s] || s
+}
+
+function cleanColor(s: string) {
+  return CLEAN_STATUS_COLOR[s] || '#dcdfe6'
+}
+
+const roomOccupancyStatus = computed(
+  () => schedule.value?.occupancyStatus || selected.value?.occupancyStatus || ''
+)
+
+const roomCleanStatus = computed(
+  () => schedule.value?.cleanStatus || selected.value?.cleanStatus || 'CLEAN'
+)
+
+const canWalkIn = computed(() => {
+  const occ = roomOccupancyStatus.value
+  const clean = roomCleanStatus.value
+  return (occ === 'VACANT' || occ === 'RESERVED') && clean === 'CLEAN'
+})
+
+const canToggleCleanDirty = computed(() =>
+  auth.hasAnyPermission(['room:status:dirty', 'room:status:clean', 'room:status:force'])
+)
+
+const cleanDirtyToggleLabel = computed(() =>
+  roomCleanStatus.value === 'DIRTY' ? '一键设为净房' : '一键设为脏房'
+)
+
+function currentRoomVersion(): number | undefined {
+  return schedule.value?.version ?? selected.value?.version
+}
+
+function syncRoomAfterStatusChange(room: {
+  status: string
+  cleanStatus: string
+  version: number
+}) {
+  if (!selected.value) return
+  selected.value.occupancyStatus = room.status
+  selected.value.cleanStatus = room.cleanStatus
+  selected.value.version = room.version
+  if (schedule.value) {
+    schedule.value.occupancyStatus = room.status
+    schedule.value.cleanStatus = room.cleanStatus
+    schedule.value.version = room.version
+  }
+}
+
+async function toggleCleanDirty() {
+  if (!selected.value || !canToggleCleanDirty.value) return
+  const targetLabel = roomCleanStatus.value === 'DIRTY' ? '净' : '脏'
+  try {
+    await ElMessageBox.confirm(`确认将保洁态切换为「${targetLabel}」？（不影响占用态）`, '保洁态切换', {
+      type: 'warning'
+    })
+  } catch {
+    return
+  }
+  saving.value = true
+  try {
+    const res = await toggleCleanDirtyApi(selected.value.id)
+    syncRoomAfterStatusChange(res.data.data)
+    ElMessage.success(`已切换为${cleanLabel(res.data.data.cleanStatus)}`)
+    await load()
+    await loadSchedule()
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    ElMessage.error(err.response?.data?.message || '切换失败')
+  } finally {
+    saving.value = false
+  }
 }
 
 function todayString() {
@@ -422,10 +650,7 @@ async function loadFloors() {
 
 async function load() {
   const res = await getRoomBoardApi(floorFilter.value, viewDate.value)
-  items.value = res.data.data.map((r) => ({
-    ...r,
-    actualStatus: r.actualStatus || r.status
-  }))
+  items.value = res.data.data
 }
 
 function addDays(dateStr: string, days: number) {
@@ -453,6 +678,167 @@ function orderStatusLabel(row: RoomScheduleOrderVO) {
   return RES_STATUS_LABEL[row.status] || row.status
 }
 
+function isResCancellable(status: string) {
+  return status === 'CONFIRMED' || status === 'PENDING'
+}
+
+async function requireOpenShift(): Promise<boolean> {
+  try {
+    const shiftRes = await getCurrentShift()
+    if (!shiftRes.data.data) {
+      ElMessage.warning('请先开班后再办理退订退款')
+      return false
+    }
+    return true
+  } catch {
+    ElMessage.warning('请先开班后再办理退订退款')
+    return false
+  }
+}
+
+function openChangeRoomFromOrder(row: RoomScheduleOrderVO) {
+  boardChangeOrder.value = row
+  boardChangeForm.value.targetRoomId = undefined
+  boardChangeVisible.value = true
+}
+
+async function loadBoardChangeRooms() {
+  if (!boardChangeOrder.value || !schedule.value) return
+  const row = boardChangeOrder.value
+  const res = await listAvailabilityApi({
+    roomTypeId: schedule.value.roomTypeId,
+    arrival: row.arrivalDate,
+    departure: row.departureDate,
+    arrivalAt: row.arrivalAt,
+    departureAt: row.departureAt
+  })
+  boardChangeRooms.value = (res.data.data || []).filter((r) => r.roomId !== schedule.value?.roomId)
+}
+
+async function submitBoardChangeRoom() {
+  if (!boardChangeOrder.value || !boardChangeForm.value.targetRoomId) {
+    ElMessage.warning('请选择目标客房')
+    return
+  }
+  const target = boardChangeRooms.value.find((r) => r.roomId === boardChangeForm.value.targetRoomId)
+  saving.value = true
+  try {
+    await changeRoom(boardChangeOrder.value.orderId, {
+      targetRoomId: boardChangeForm.value.targetRoomId,
+      targetRoomVersion: target?.version
+    })
+    ElMessage.success('换房成功')
+    boardChangeVisible.value = false
+    await loadSchedule()
+    await load()
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    ElMessage.error(err.response?.data?.message || '换房失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function openVoidFromOrder(row: RoomScheduleOrderVO) {
+  boardVoidOrder.value = row
+  boardVoidForm.chargeThroughDate = viewDate.value
+  boardVoidForm.refundMethod = 'CASH'
+  boardVoidForm.remark = ''
+  boardVoidStay.value = null
+  boardVoidPreview.value = null
+  try {
+    const res = await getStay(row.orderId)
+    boardVoidStay.value = res.data.data
+    refreshBoardVoidRefund()
+  } catch {
+    boardVoidForm.refundAmount = 0
+  }
+  boardVoidVisible.value = true
+}
+
+function refreshBoardVoidRefund() {
+  const stay = boardVoidStay.value
+  if (!stay || !boardVoidForm.chargeThroughDate) {
+    boardVoidForm.refundAmount = 0
+    boardVoidPreview.value = null
+    return
+  }
+  const paid = Number(stay.folioPaidAmount ?? 0)
+  const rate = Number(stay.agreedDailyRate ?? schedule.value?.rackRate ?? 0)
+  const preview = computeRefundPreview(
+    paid,
+    rate,
+    stay.arrivalDate,
+    stay.departureDate,
+    boardVoidForm.chargeThroughDate
+  )
+  boardVoidPreview.value = preview
+  boardVoidForm.refundAmount = preview.refund
+}
+
+async function submitBoardVoid() {
+  if (!boardVoidOrder.value || !boardVoidForm.chargeThroughDate) return
+  if (!(await requireOpenShift())) return
+  try {
+    await ElMessageBox.confirm('确认提前退房并退款？客房将置为脏房。', '退订（退款）', { type: 'warning' })
+  } catch {
+    return
+  }
+  saving.value = true
+  try {
+    await voidCheckout(boardVoidOrder.value.orderId, {
+      chargeThroughDate: boardVoidForm.chargeThroughDate,
+      refundMethod: boardVoidForm.refundMethod,
+      remark: boardVoidForm.remark,
+      refundAmount: boardVoidForm.refundAmount ?? 0
+    })
+    ElMessage.success('已办理退订（退款）')
+    boardVoidVisible.value = false
+    actionVisible.value = false
+    await load()
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    ElMessage.error(err.response?.data?.message || '操作失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+function openCancelRefundFromOrder(row: RoomScheduleOrderVO) {
+  boardCancelResOrder.value = row
+  boardCancelResForm.refundAmount = 0
+  boardCancelResForm.refundMethod = 'CASH'
+  boardCancelResForm.remark = ''
+  boardCancelResVisible.value = true
+}
+
+async function submitBoardCancelRefund() {
+  if (!boardCancelResOrder.value) return
+  if ((boardCancelResForm.refundAmount ?? 0) > 0 && !(await requireOpenShift())) return
+  try {
+    await ElMessageBox.confirm('确认取消该预订？将解除房态锁定。', '退订（退款）', { type: 'warning' })
+  } catch {
+    return
+  }
+  saving.value = true
+  try {
+    await cancelWithRefundApi(boardCancelResOrder.value.orderId, {
+      refundAmount: boardCancelResForm.refundAmount ?? 0,
+      refundMethod: boardCancelResForm.refundMethod,
+      remark: boardCancelResForm.remark
+    })
+    ElMessage.success('预订已取消')
+    boardCancelResVisible.value = false
+    await loadSchedule()
+    await load()
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    ElMessage.error(err.response?.data?.message || '操作失败')
+  } finally {
+    saving.value = false
+  }
+}
+
 async function loadSchedule() {
   if (!selected.value) return
   scheduleLoading.value = true
@@ -475,6 +861,7 @@ function openActions(room: RoomBoardItem) {
 }
 
 async function onDialogOpen() {
+  await auth.syncPermissions()
   if (roomTypes.value.length === 0) {
     const t = await listRoomTypesApi()
     roomTypes.value = t.data.data || []
@@ -654,15 +1041,7 @@ function openEndMaintenance() {
   endMaintVisible.value = true
 }
 
-function canMarkDirty(status?: string) {
-  return !!status && (MARK_DIRTY_FROM as readonly string[]).includes(status)
-}
-
-function canMarkClean(status?: string) {
-  return !!status && (MARK_CLEAN_FROM as readonly string[]).includes(status)
-}
-
-async function submitMarkDirty() {
+async function submitMarkDirty(keepDialog = false) {
   if (!selected.value) return
   try {
     await ElMessageBox.confirm('确认将该客房设为脏房？', '设为脏房', { type: 'warning' })
@@ -671,17 +1050,25 @@ async function submitMarkDirty() {
   }
   saving.value = true
   try {
-    await markRoomDirtyApi(selected.value.id, { version: selected.value.version })
+    const res = await markRoomDirtyApi(selected.value.id, { version: currentRoomVersion() })
+    syncRoomAfterStatusChange(res.data.data)
     ElMessage.success('已设为脏房')
-    actionVisible.value = false
     await load()
     await loadFloors()
+    if (keepDialog) {
+      await loadSchedule()
+    } else {
+      actionVisible.value = false
+    }
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    ElMessage.error(err.response?.data?.message || '设为脏房失败')
   } finally {
     saving.value = false
   }
 }
 
-async function submitMarkClean() {
+async function submitMarkClean(keepDialog = false) {
   if (!selected.value) return
   try {
     await ElMessageBox.confirm('确认打扫完成，设为空净？', '设为空净', { type: 'info' })
@@ -690,14 +1077,19 @@ async function submitMarkClean() {
   }
   saving.value = true
   try {
-    await markRoomCleanApi(selected.value.id, { version: selected.value.version })
+    const res = await markRoomCleanApi(selected.value.id, { version: currentRoomVersion() })
+    syncRoomAfterStatusChange(res.data.data)
     ElMessage.success('已设为空净')
-    actionVisible.value = false
     await load()
     await loadFloors()
-    if (actionVisible.value) {
+    if (keepDialog) {
       await loadSchedule()
+    } else {
+      actionVisible.value = false
     }
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    ElMessage.error(err.response?.data?.message || '设为空净失败')
   } finally {
     saving.value = false
   }
@@ -705,7 +1097,7 @@ async function submitMarkClean() {
 
 function openForce() {
   actionVisible.value = false
-  forceForm.targetStatus = 'VACANT_CLEAN'
+  forceForm.targetStatus = 'VACANT'
   forceForm.reason = ''
   forceVisible.value = true
 }
@@ -810,6 +1202,17 @@ onMounted(async () => {
   color: #666;
   margin: 4px 0;
 }
+.card-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.card-actual {
+  font-size: 11px;
+  color: #606266;
+  margin-top: 4px;
+}
 .tags {
   margin-top: 6px;
   display: flex;
@@ -845,6 +1248,21 @@ onMounted(async () => {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+.quick-status-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+  align-items: center;
+}
+.form-hint {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+}
+.status-warn {
+  margin-top: 8px;
 }
 .hint-inline {
   font-size: 12px;

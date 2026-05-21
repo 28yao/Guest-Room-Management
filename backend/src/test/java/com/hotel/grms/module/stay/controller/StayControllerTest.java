@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
@@ -47,10 +48,14 @@ class StayControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     private String adminToken;
 
     @BeforeEach
     void login() throws Exception {
+        jdbcTemplate.update("DELETE FROM shift_session");
         LoginRequest request = new LoginRequest();
         request.setUsername("admin");
         request.setPassword("admin123");
@@ -67,7 +72,7 @@ class StayControllerTest {
     @Order(1)
     void walkInRequiresOpenShift() throws Exception {
         Long typeId = createRoomType();
-        Long roomId = createRoom(typeId, "801");
+        Long roomId = createRoom(typeId, "ST901");
         WalkInCheckInRequest checkIn = buildWalkIn(roomId);
         mockMvc.perform(post("/api/v1/stays/walk-in")
                         .header("Authorization", "Bearer " + adminToken)
@@ -82,7 +87,7 @@ class StayControllerTest {
     void walkInSuccessAfterOpenShift() throws Exception {
         openShift();
         Long typeId = createRoomType();
-        Long roomId = createRoom(typeId, "802");
+        Long roomId = createRoom(typeId, "ST902");
         WalkInCheckInRequest checkIn = buildWalkIn(roomId);
         mockMvc.perform(post("/api/v1/stays/walk-in")
                         .header("Authorization", "Bearer " + adminToken)
@@ -93,7 +98,8 @@ class StayControllerTest {
                 .andExpect(jsonPath("$.data.status").value("IN_HOUSE"));
         mockMvc.perform(get("/api/v1/rooms").header("Authorization", "Bearer " + adminToken))
                 .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("OCCUPIED"));
-        mockMvc.perform(get("/api/v1/stays/in-house").header("Authorization", "Bearer " + adminToken))
+        mockMvc.perform(get("/api/v1/stays/in-house").param("guestName", "WalkIn-" + roomId)
+                        .header("Authorization", "Bearer " + adminToken))
                 .andExpect(jsonPath("$.data.length()").value(1));
     }
 
@@ -102,7 +108,7 @@ class StayControllerTest {
     void checkInFromReservationSuccess() throws Exception {
         openShift();
         Long typeId = createRoomType();
-        Long roomId = createRoom(typeId, "803");
+        Long roomId = createRoom(typeId, "ST904");
         Long reservationId = createReservation(typeId);
         AssignRoomRequest assign = new AssignRoomRequest();
         assign.setRoomId(roomId);
@@ -131,7 +137,7 @@ class StayControllerTest {
     private WalkInCheckInRequest buildWalkIn(Long roomId) {
         WalkInCheckInRequest request = new WalkInCheckInRequest();
         request.setRoomId(roomId);
-        request.setGuestName("张三");
+        request.setGuestName("WalkIn-" + roomId);
         request.setGuestPhone("13800000001");
         request.setArrivalDate(LocalDate.now());
         request.setDepartureDate(LocalDate.now().plusDays(1));
@@ -164,6 +170,7 @@ class StayControllerTest {
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
+                .andExpect(jsonPath("$.code").value(0))
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asLong();
     }

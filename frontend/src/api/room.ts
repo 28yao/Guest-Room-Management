@@ -6,7 +6,10 @@ export interface RoomVO {
   roomTypeId: number
   roomTypeName?: string
   floorNo: number
+  /** 占用态 VACANT|RESERVED|OCCUPIED|OUT_OF_ORDER */
   status: string
+  /** 保洁态 CLEAN|DIRTY */
+  cleanStatus: string
   version: number
 }
 
@@ -16,10 +19,12 @@ export interface RoomBoardItem {
   roomTypeId: number
   roomTypeName: string
   floorNo: number
-  /** 按查看日计算的展示房态 */
+  /** 查看日占用展示态 */
   status: string
-  /** 库内实时房态（操作用） */
-  actualStatus: string
+  /** 库内占用态 */
+  occupancyStatus: string
+  /** 库内保洁态 */
+  cleanStatus: string
   version: number
   rackRate?: number
   dailyTags: string[]
@@ -57,7 +62,8 @@ export interface RoomScheduleVO {
   roomTypeId: number
   roomTypeName: string
   rackRate?: number
-  actualStatus: string
+  occupancyStatus: string
+  cleanStatus: string
   version: number
   viewDate: string
   occupiedOnViewDate: boolean
@@ -119,6 +125,11 @@ export function markRoomCleanApi(id: number, data?: { version?: number }) {
   return request.post<{ data: RoomVO }>(`/rooms/${id}/status/clean`, data ?? {})
 }
 
+/** 净/脏一键切换（仅改保洁态，与占用态无关） */
+export function toggleCleanDirtyApi(id: number) {
+  return request.post<{ data: RoomVO }>(`/rooms/${id}/status/toggle-clean-dirty`)
+}
+
 export function forceRoomStatusApi(
   id: number,
   data: { targetStatus: string; reason: string; version?: number }
@@ -126,24 +137,36 @@ export function forceRoomStatusApi(
   return request.post<{ data: RoomVO }>(`/rooms/${id}/status/force`, data)
 }
 
-/** 可置为脏房的当前状态 */
-export const MARK_DIRTY_FROM = ['VACANT_CLEAN', 'RESERVED', 'OCCUPIED'] as const
-
-/** 可置为空净的当前状态 */
-export const MARK_CLEAN_FROM = ['DIRTY'] as const
-
-export const ROOM_STATUS_LABEL: Record<string, string> = {
-  VACANT_CLEAN: '空净',
+export const OCCUPANCY_STATUS_LABEL: Record<string, string> = {
+  VACANT: '空房',
   RESERVED: '预订',
   OCCUPIED: '在住',
-  DIRTY: '脏房',
-  OUT_OF_ORDER: '维修'
+  OUT_OF_ORDER: '维修',
+  VACANT_CLEAN: '空净',
+  DIRTY: '脏房'
 }
 
-export const ROOM_STATUS_COLOR: Record<string, string> = {
-  VACANT_CLEAN: '#67c23a',
+export const CLEAN_STATUS_LABEL: Record<string, string> = {
+  CLEAN: '净',
+  DIRTY: '脏'
+}
+
+export const OCCUPANCY_STATUS_COLOR: Record<string, string> = {
+  VACANT: '#67c23a',
   RESERVED: '#409eff',
   OCCUPIED: '#e6a23c',
-  DIRTY: '#909399',
-  OUT_OF_ORDER: '#f56c6c'
+  OUT_OF_ORDER: '#f56c6c',
+  VACANT_CLEAN: '#67c23a',
+  DIRTY: '#909399'
 }
+
+export const CLEAN_STATUS_COLOR: Record<string, string> = {
+  CLEAN: '#67c23a',
+  DIRTY: '#909399'
+}
+
+/** @deprecated 使用 OCCUPANCY_STATUS_LABEL */
+export const ROOM_STATUS_LABEL = OCCUPANCY_STATUS_LABEL
+
+/** @deprecated 使用 OCCUPANCY_STATUS_COLOR */
+export const ROOM_STATUS_COLOR = OCCUPANCY_STATUS_COLOR

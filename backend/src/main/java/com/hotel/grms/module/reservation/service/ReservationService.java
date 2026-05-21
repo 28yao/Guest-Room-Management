@@ -5,8 +5,11 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hotel.grms.common.BusinessException;
 import com.hotel.grms.common.PageResult;
 import com.hotel.grms.module.reservation.ReservationStatus;
+import com.hotel.grms.module.billing.service.BillingService;
 import com.hotel.grms.module.reservation.dto.AssignRoomRequest;
+import com.hotel.grms.module.reservation.dto.CancelWithRefundRequest;
 import com.hotel.grms.module.reservation.dto.ReleaseReservationRequest;
+import com.hotel.grms.module.shift.service.ShiftSessionService;
 import com.hotel.grms.module.reservation.dto.ReservationCreateRequest;
 import com.hotel.grms.module.reservation.dto.ReservationResponse;
 import com.hotel.grms.module.reservation.dto.ReservationUpdateRequest;
@@ -24,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -47,15 +51,20 @@ public class ReservationService {
     private final RoomService roomService;
     private final RoomTypeService roomTypeService;
     private final RoomAvailabilityService roomAvailabilityService;
+    private final BillingService billingService;
+    private final ShiftSessionService shiftSessionService;
 
     public ReservationService(ReservationMapper reservationMapper, RoomMapper roomMapper,
                               RoomService roomService, RoomTypeService roomTypeService,
-                              RoomAvailabilityService roomAvailabilityService) {
+                              RoomAvailabilityService roomAvailabilityService,
+                              BillingService billingService, ShiftSessionService shiftSessionService) {
         this.reservationMapper = reservationMapper;
         this.roomMapper = roomMapper;
         this.roomService = roomService;
         this.roomTypeService = roomTypeService;
         this.roomAvailabilityService = roomAvailabilityService;
+        this.billingService = billingService;
+        this.shiftSessionService = shiftSessionService;
     }
 
     /**
@@ -177,7 +186,7 @@ public class ReservationService {
         roomAvailabilityService.assertAssignable(request.getRoomId(), entity.getArrivalAt(),
                 entity.getDepartureAt(), id);
         releaseAssignedRoomIfNeeded(entity);
-        roomService.transitionStatus(request.getRoomId(), RoomStatus.RESERVED, null);
+        roomService.transitionOccupancy(request.getRoomId(), RoomStatus.RESERVED, null);
         entity.setRoomId(request.getRoomId());
         reservationMapper.updateById(entity);
         return toResponse(reservationMapper.selectById(id));
@@ -196,6 +205,34 @@ public class ReservationService {
         releaseAssignedRoomIfNeeded(entity);
         entity.setStatus(ReservationStatus.CANCELLED);
         reservationMapper.updateById(entity);
+        return toResponse(reservationMapper.selectById(id));
+    }
+
+    /**
+     * 退订并退款：取消预订、释放房态，可选记录退款流水。
+     *
+     * @param id      预订 ID
+     * @param request 退款请求
+     * @return 更新后详情
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public ReservationResponse cancelWithRefund(Long id, CancelWithRefundRequest request) {
+        Reservation entity = getEntity(id);
+        assertCancellable(entity);
+        releaseAssignedRoomIfNeeded(entity);
+        entity.setStatus(ReservationStatus.CANCELLED);
+        if (request != null && StringUtils.hasText(request.getRemark())) {
+            String existing = entity.getRemark();
+            entity.setRemark(StringUtils.hasText(existing) ? existing + "；" + request.getRemark() : request.getRemark());
+        }
+        reservationMapper.updateById(entity);
+        if (request != null) {
+            BigDecimal refund = request.getRefundAmount() != null ? request.getRefundAmount() : BigDecimal.ZERO;
+            if (refund.compareTo(BigDecimal.ZERO) > 0) {
+                Long shiftId = shiftSessionService.requireOpenSessionId();
+                billingService.recordReservationRefund(refund, request.getRefundMethod(), shiftId);
+            }
+        }
         return toResponse(reservationMapper.selectById(id));
     }
 
@@ -272,7 +309,7 @@ public class ReservationService {
         }
         Room room = roomMapper.selectById(roomId);
         if (room != null && RoomStatus.RESERVED.equals(room.getStatus())) {
-            roomService.transitionStatus(roomId, RoomStatus.VACANT_CLEAN, null);
+            roomService.transitionOccupancy(roomId, RoomStatus.VACANT, null);
         }
         entity.setRoomId(null);
     }

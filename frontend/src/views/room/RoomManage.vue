@@ -8,9 +8,14 @@
       <el-table-column prop="roomNo" label="房号" width="100" />
       <el-table-column prop="roomTypeName" label="房型" />
       <el-table-column prop="floorNo" label="楼层" width="80" />
-      <el-table-column label="房态" width="100">
+      <el-table-column label="占用态" width="100">
         <template #default="{ row }">
-          <el-tag>{{ statusLabel(row.status) }}</el-tag>
+          <el-tag>{{ occupancyLabel(row.status) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="保洁态" width="80">
+        <template #default="{ row }">
+          <el-tag type="info">{{ cleanLabel(row.cleanStatus) }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="100">
@@ -50,7 +55,8 @@ import {
   listRoomsApi,
   createRoomApi,
   updateRoomApi,
-  ROOM_STATUS_LABEL,
+  OCCUPANCY_STATUS_LABEL,
+  CLEAN_STATUS_LABEL,
   type RoomVO,
   type RoomForm
 } from '@/api/room'
@@ -68,8 +74,12 @@ const form = reactive({
   floorNo: 2
 })
 
-function statusLabel(s: string) {
-  return ROOM_STATUS_LABEL[s] || s
+function occupancyLabel(s: string) {
+  return OCCUPANCY_STATUS_LABEL[s] || s
+}
+
+function cleanLabel(s: string) {
+  return CLEAN_STATUS_LABEL[s] || s
 }
 
 async function load() {

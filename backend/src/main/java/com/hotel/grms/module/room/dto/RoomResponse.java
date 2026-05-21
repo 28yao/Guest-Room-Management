@@ -13,7 +13,10 @@ public class RoomResponse {
     private Long roomTypeId;
     private String roomTypeName;
     private Integer floorNo;
+    /** 占用态 */
     private String status;
+    /** 保洁态 */
+    private String cleanStatus;
     private Integer version;
 
     public Long getId() {
@@ -62,6 +65,14 @@ public class RoomResponse {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getCleanStatus() {
+        return cleanStatus;
+    }
+
+    public void setCleanStatus(String cleanStatus) {
+        this.cleanStatus = cleanStatus;
     }
 
     public Integer getVersion() {
