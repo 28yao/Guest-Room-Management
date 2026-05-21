@@ -15,7 +15,7 @@
         <el-option v-for="f in floors" :key="f" :label="`${f} 层`" :value="f" />
       </el-select>
       <el-button @click="load">刷新</el-button>
-      <span class="date-hint">展示态按 {{ viewDate }} 与预订时段计算；操作以库内实时状态为准</span>
+      <span class="date-hint">展示态按 {{ viewDate }} 与预订/在住日期计算；操作以库内实时状态为准</span>
     </div>
     <div v-if="items.length === 0" class="empty">暂无客房，请先在「客房管理」中维护房号</div>
     <div v-else class="board">

@@ -24,6 +24,16 @@ public class GlobalExceptionHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    private static final String SCHEMA_MISMATCH_MIGRATION_HINT =
+            "数据库表结构与当前版本不一致，请在 grms 库依次执行："
+                    + "sql/V3__auth_add_description.sql（缺 description 列）、"
+                    + "sql/V5__schema_align_legacy.sql（缺 room/room_type 等列）、"
+                    + "sql/V7__reservation_datetime.sql（缺 arrival_at/departure_at 列）、"
+                    + "sql/V8__stay_order_guest.sql（缺 stay_order.guest_name 列）、"
+                    + "sql/V9__folio_line_billing.sql（缺 folio_line.quantity/unit_price 列）、"
+                    + "sql/V10__folio_timestamps.sql（缺 folio.created_at/updated_at 列），"
+                    + "或重新执行 sql/V1、V2 全量建库";
+
     /**
      * 处理业务异常。
      *
@@ -66,15 +76,24 @@ public class GlobalExceptionHandler {
      * @param ex 连接异常
      * @return 失败响应
      */
-    @ExceptionHandler({CannotGetJdbcConnectionException.class, DataAccessException.class})
+    @ExceptionHandler(CannotGetJdbcConnectionException.class)
+    @ResponseStatus(HttpStatus.OK)
+    public R<Void> handleCannotConnect(CannotGetJdbcConnectionException ex) {
+        LOGGER.error("数据库连接失败", ex);
+        return R.fail(50001, "数据库连接失败，请检查 MySQL 是否启动、库表是否已初始化、账号密码是否正确");
+    }
+
+    /**
+     * 处理 SQL 执行失败（非连接池不可用）。
+     *
+     * @param ex 数据访问异常
+     * @return 失败响应
+     */
+    @ExceptionHandler(DataAccessException.class)
     @ResponseStatus(HttpStatus.OK)
     public R<Void> handleDataAccess(DataAccessException ex) {
         LOGGER.error("数据库访问失败", ex);
-        String schemaHint = resolveSchemaMismatchHint(ex);
-        if (schemaHint != null) {
-            return R.fail(50002, schemaHint);
-        }
-        return R.fail(50001, "数据库连接失败，请检查 MySQL 是否启动、库表是否已初始化、账号密码是否正确");
+        return R.fail(50002, resolveDataAccessMessage(ex));
     }
 
     /**
@@ -94,11 +113,43 @@ public class GlobalExceptionHandler {
         if (root != null && root.getMessage() != null && root.getMessage().contains("Access denied")) {
             return R.fail(50001, "数据库连接失败，请检查 MySQL 账号密码（可复制 application-local.yml.example）");
         }
+        return R.fail(50002, resolveDataAccessMessage(ex));
+    }
+
+    private String resolveDataAccessMessage(Throwable ex) {
         String schemaHint = resolveSchemaMismatchHint(ex);
         if (schemaHint != null) {
-            return R.fail(50002, schemaHint);
+            return schemaHint;
         }
-        return R.fail(50001, "数据库访问失败，请检查数据库配置与表结构");
+        String constraintHint = resolveSqlConstraintHint(ex);
+        if (constraintHint != null) {
+            return constraintHint;
+        }
+        Throwable root = ex;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        if (root.getMessage() != null) {
+            return "数据库操作失败：" + root.getMessage();
+        }
+        return "数据库访问失败，请检查表结构与后端日志";
+    }
+
+    private String resolveSqlConstraintHint(Throwable ex) {
+        Throwable cursor = ex;
+        while (cursor != null) {
+            String message = cursor.getMessage();
+            if (message != null) {
+                if (message.contains("guest_name") && message.contains("doesn't have a default value")) {
+                    return "在住单表缺少客人姓名写入，请执行 sql/V8__stay_order_guest.sql 对齐表结构后重启后端";
+                }
+                if (message.contains("doesn't have a default value") || message.contains("cannot be null")) {
+                    return "数据库字段约束不满足，请核对表结构与迁移脚本（V3/V5/V7/V8/V9/V10）";
+                }
+            }
+            cursor = cursor.getCause();
+        }
+        return null;
     }
 
     private String resolveSchemaMismatchHint(Throwable ex) {
@@ -107,11 +158,13 @@ public class GlobalExceptionHandler {
             String message = cursor.getMessage();
             if (message != null && (message.contains("Unknown column")
                     || message.contains("doesn't exist"))) {
-                return "数据库表结构与当前版本不一致，请在 grms 库依次执行："
-                        + "sql/V3__auth_add_description.sql（缺 description 列）、"
-                        + "sql/V5__schema_align_legacy.sql（缺 room/room_type 等列）、"
-                        + "sql/V7__reservation_datetime.sql（缺 arrival_at/departure_at 列），"
-                        + "或重新执行 sql/V1、V2 全量建库";
+                if (message.contains("quantity") || message.contains("unit_price")) {
+                    return "账单明细表结构与当前版本不一致，请在 grms 库执行 sql/V9__folio_line_billing.sql（缺 quantity/unit_price 列），或重新执行 sql/V1、V2 全量建库";
+                }
+                if (message.contains("created_at") || message.contains("updated_at")) {
+                    return "账单主表结构与当前版本不一致，请在 grms 库执行 sql/V10__folio_timestamps.sql（缺 folio.created_at/updated_at 列；换房重算常见），或重新执行 sql/V1、V2 全量建库";
+                }
+                return SCHEMA_MISMATCH_MIGRATION_HINT;
             }
             cursor = cursor.getCause();
         }

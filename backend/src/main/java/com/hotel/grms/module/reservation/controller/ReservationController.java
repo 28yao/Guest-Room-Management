@@ -66,6 +66,7 @@ public class ReservationController {
      * @param arrivalFrom 入住日起
      * @param arrivalTo   入住日止
      * @param guestPhone  手机号
+     * @param guestName   客人姓名
      * @param page        页码
      * @param size        每页大小
      * @return 分页数据
@@ -77,9 +78,10 @@ public class ReservationController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate arrivalFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate arrivalTo,
             @RequestParam(required = false) String guestPhone,
+            @RequestParam(required = false) String guestName,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return R.ok(reservationService.list(status, arrivalFrom, arrivalTo, guestPhone, page, size));
+        return R.ok(reservationService.list(status, arrivalFrom, arrivalTo, guestPhone, guestName, page, size));
     }
 
     /**

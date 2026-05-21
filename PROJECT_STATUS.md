@@ -11,7 +11,7 @@
 | 技术方案 | [specs/plan.md](./specs/plan.md) v1.0 |
 | 任务清单 | [specs/tasks.md](./specs/tasks.md) |
 | 手动验收 | [docs/MANUAL_ACCEPTANCE.md](./docs/MANUAL_ACCEPTANCE.md) |
-| 最后更新 | 2026-05-21（MOD-RES 预订管理） |
+| 最后更新 | 2026-05-21（MOD-STAY 入住与在住） |
 
 ## 整体架构快照
 
@@ -39,9 +39,16 @@
     手动释放/取消                                              交班汇总收款与待办
 ```
 
-**代码现状**：MOD-INFRA、MOD-AUTH、MOD-ROOM、**MOD-RES** 已完成；下一模块 **MOD-STAY**。
+**代码现状**：MOD-INFRA、MOD-AUTH、MOD-ROOM、MOD-RES、**MOD-STAY（首批）** 已完成；下一模块 **MOD-BILL（退房结账）**。
 
-### 近期交付摘要（MOD-RES）
+### 近期交付摘要（MOD-STAY）
+
+- Walk-in / 预订入住（默认 18:00/12:00 可改）；开班校验；在住列表、换房、备注
+- 房态图：查看日展示在住/预订优先于脏房；相邻日期在住不误判冲突（BR-14/15）
+- 账单基础：`BillingService` 按晚生成 `folio_line`；交班基础：`POST/GET shifts`
+- 前端 `/check-in`、`/in-house`
+
+### 历史交付（MOD-RES）
 
 - 预订 CRUD、分页筛选；预排房（房态 → `RESERVED`）；取消/手动释放（可选 No-show）
 - 可售校验 `GET /reservations/availability`；超售返回 **40002**
@@ -59,11 +66,12 @@
 | 需求澄清与 spec.md | 已完成 | spec v1.0 |
 | 技术方案 plan.md | 已完成 | 含 API/表结构/状态机 |
 | 项目管理文档 | 已完成 | README、PROJECT_STATUS、手动验收清单 |
-| 数据库与工程骨架（T-INFRA） | 已完成 | V1～V6 迁移脚本 |
+| 数据库与工程骨架（T-INFRA） | 已完成 | V1～V10 迁移脚本（旧库见 README） |
 | 认证与权限（MOD-AUTH） | 已完成 | JWT、RBAC、改密、恢复默认 |
 | 客房房态（MOD-ROOM） | 已完成 | 房态图、CRUD、维修、置脏/置净、强改 |
 | 预订管理（MOD-RES） | 已完成 | 手工预订、预排房、释放、可售校验 |
-| 后端 MVP 其余模块 | 待开始 | tasks.md §5 起（MOD-STAY） |
+| 入住与在住（MOD-STAY） | 已完成（首批） | Walk-in、预订入住、换房、备注；退房待 MOD-BILL |
+| 后端 MVP 其余模块 | 待开始 | MOD-BILL → MOD-HK → MOD-SHIFT 结班 |
 | 集成测试与验收（T-QA） | 待开始 | TC-01～12 |
 
 ## 风险与阻塞点
@@ -71,11 +79,11 @@
 | 类型 | 描述 | 缓解措施 |
 |------|------|----------|
 | 缺陷 | **BUG-AUTH-01**：角色/直授后用户管理前端仍无权限 | 未修复，后期处理；用户管理用 `admin` |
-| 进度 | 入住/退房等业务待开发 | 按 tasks.md MOD-STAY 执行 |
-| 环境 | 旧库缺列导致 50002 | README 中 V3/V5 迁移说明 |
+| 进度 | 退房结账/保洁/结班待开发 | 按 tasks.md MOD-BILL 起执行 |
+| 环境 | 旧库缺列导致 50002 | README 中 V3～V10 迁移说明（入住 V9、换房 V10） |
 | 业务 | OQ-01～05 已在 plan 锁定 | 变更先改 spec |
 | 质量 | 房态并发与超售 | 乐观锁 + 可售校验（预订已接入） |
 
 ## 下次更新时间
 
-**MOD-STAY 首批接口落地后**，或 **2026-05-28** 例行同步。
+**MOD-BILL 退房结账落地后**，或 **2026-05-28** 例行同步。

@@ -1,5 +1,7 @@
 package com.hotel.grms.module.reservation.dto;
 
+import java.math.BigDecimal;
+
 /**
  * 可预排房客房项。
  *
@@ -12,6 +14,7 @@ public class AvailableRoomDto {
     private String roomNo;
     private Long roomTypeId;
     private String roomTypeName;
+    private BigDecimal rackRate;
     private Integer floorNo;
     private Integer version;
 
@@ -45,6 +48,14 @@ public class AvailableRoomDto {
 
     public void setRoomTypeName(String roomTypeName) {
         this.roomTypeName = roomTypeName;
+    }
+
+    public BigDecimal getRackRate() {
+        return rackRate;
+    }
+
+    public void setRackRate(BigDecimal rackRate) {
+        this.rackRate = rackRate;
     }
 
     public Integer getFloorNo() {

@@ -46,6 +46,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '预订管理', permissions: ['reservation:manage'] }
       },
       {
+        path: 'check-in',
+        name: 'CheckIn',
+        component: () => import('@/views/stay/CheckIn.vue'),
+        meta: { title: '办理入住', permissions: ['stay:checkin'] }
+      },
+      {
+        path: 'in-house',
+        name: 'InHouseList',
+        component: () => import('@/views/stay/InHouseList.vue'),
+        meta: { title: '在住管理' }
+      },
+      {
         path: 'system/users',
         name: 'UserManage',
         component: () => import('@/views/system/UserManage.vue'),

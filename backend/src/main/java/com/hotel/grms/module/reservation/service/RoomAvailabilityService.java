@@ -16,6 +16,12 @@ import com.hotel.grms.module.reservation.mapper.ReservationMapper;
 
 import com.hotel.grms.module.reservation.support.ReservationTimePolicy;
 
+import com.hotel.grms.module.stay.StayStatus;
+
+import com.hotel.grms.module.stay.entity.StayOrder;
+
+import com.hotel.grms.module.stay.mapper.StayOrderMapper;
+
 import com.hotel.grms.module.room.RoomStatus;
 
 import com.hotel.grms.module.room.entity.Room;
@@ -68,17 +74,23 @@ public class RoomAvailabilityService {
 
     private final ReservationMapper reservationMapper;
 
+    private final StayOrderMapper stayOrderMapper;
+
 
 
     public RoomAvailabilityService(RoomMapper roomMapper, RoomTypeService roomTypeService,
 
-                                   ReservationMapper reservationMapper) {
+                                   ReservationMapper reservationMapper,
+
+                                   StayOrderMapper stayOrderMapper) {
 
         this.roomMapper = roomMapper;
 
         this.roomTypeService = roomTypeService;
 
         this.reservationMapper = reservationMapper;
+
+        this.stayOrderMapper = stayOrderMapper;
 
     }
 
@@ -100,6 +112,21 @@ public class RoomAvailabilityService {
 
      */
 
+    /**
+     * 校验客房在时刻区间内无在住单冲突（可排除指定在住单）。
+     *
+     * @param roomId         客房 ID
+     * @param arrivalAt      入住时刻
+     * @param departureAt    离店时刻
+     * @param excludeStayId  排除的在住单 ID
+     */
+    public void assertNoStayTimeConflict(Long roomId, LocalDateTime arrivalAt, LocalDateTime departureAt,
+                                       Long excludeStayId) {
+        if (hasStayConflict(roomId, arrivalAt, departureAt, excludeStayId)) {
+            throw new BusinessException(40002, "该客房在所选时段已有在住订单");
+        }
+    }
+
     public void assertAssignable(Long roomId, LocalDateTime arrivalAt, LocalDateTime departureAt,
 
                                Long excludeReservationId) {
@@ -120,9 +147,9 @@ public class RoomAvailabilityService {
 
         }
 
-        if (hasStayConflict(roomId, arrivalAt.toLocalDate(), departureAt.toLocalDate())) {
+        if (hasStayConflict(roomId, arrivalAt, departureAt, null)) {
 
-            throw new BusinessException(40002, "该客房在所选日期已被在住单占用");
+            throw new BusinessException(40002, "该客房在所选时段已被在住单占用");
 
         }
 
@@ -176,7 +203,7 @@ public class RoomAvailabilityService {
 
         List<Room> rooms = roomMapper.selectList(wrapper);
 
-        Map<Long, String> typeNames = loadTypeNames(rooms);
+        Map<Long, RoomType> types = loadTypes(rooms);
 
         List<AvailableRoomDto> result = new ArrayList<AvailableRoomDto>();
 
@@ -184,7 +211,9 @@ public class RoomAvailabilityService {
 
             if (!hasReservationConflict(room.getId(), arrivalAt, departureAt, excludeReservationId)
 
-                    && !hasStayConflict(room.getId(), arrivalAt.toLocalDate(), departureAt.toLocalDate())) {
+                    && !hasStayConflict(room.getId(), arrivalAt, departureAt, null)) {
+
+                RoomType type = types.get(room.getRoomTypeId());
 
                 AvailableRoomDto dto = new AvailableRoomDto();
 
@@ -194,7 +223,13 @@ public class RoomAvailabilityService {
 
                 dto.setRoomTypeId(room.getRoomTypeId());
 
-                dto.setRoomTypeName(typeNames.get(room.getRoomTypeId()));
+                if (type != null) {
+
+                    dto.setRoomTypeName(type.getName());
+
+                    dto.setRackRate(type.getRackRate());
+
+                }
 
                 dto.setFloorNo(room.getFloorNo());
 
@@ -206,8 +241,61 @@ public class RoomAvailabilityService {
 
         }
 
+        prependPreAssignedRoom(result, types, roomTypeId, excludeReservationId, arrivalAt, departureAt);
+
         return result;
 
+    }
+
+
+
+    /**
+     * 将当前预订已预排（RESERVED）的客房加入可选列表，供预订入住默认选中。
+     */
+    private void prependPreAssignedRoom(List<AvailableRoomDto> result, Map<Long, RoomType> types, Long roomTypeId,
+                                        Long excludeReservationId, LocalDateTime arrivalAt,
+                                        LocalDateTime departureAt) {
+        if (excludeReservationId == null) {
+            return;
+        }
+        Reservation reservation = reservationMapper.selectById(excludeReservationId);
+        if (reservation == null || reservation.getRoomId() == null) {
+            return;
+        }
+        Long assignedRoomId = reservation.getRoomId();
+        for (AvailableRoomDto existing : result) {
+            if (assignedRoomId.equals(existing.getRoomId())) {
+                return;
+            }
+        }
+        Room room = roomMapper.selectById(assignedRoomId);
+        if (room == null) {
+            return;
+        }
+        if (roomTypeId != null && !roomTypeId.equals(room.getRoomTypeId())) {
+            return;
+        }
+        if (!RoomStatus.RESERVED.equals(room.getStatus())) {
+            return;
+        }
+        if (hasStayConflict(room.getId(), arrivalAt, departureAt, null)) {
+            return;
+        }
+        RoomType type = types.get(room.getRoomTypeId());
+        if (type == null) {
+            type = roomTypeService.getById(room.getRoomTypeId());
+        }
+        AvailableRoomDto dto = new AvailableRoomDto();
+        dto.setRoomId(room.getId());
+        dto.setRoomNo(room.getRoomNo());
+        dto.setRoomTypeId(room.getRoomTypeId());
+        if (type != null) {
+            dto.setRoomTypeName(type.getName());
+            dto.setRackRate(type.getRackRate());
+        }
+        dto.setFloorNo(room.getFloorNo());
+        dto.setVersion(room.getVersion());
+        result.add(0, dto);
     }
 
 
@@ -248,19 +336,30 @@ public class RoomAvailabilityService {
 
 
 
-    private boolean hasStayConflict(Long roomId, LocalDate arrival, LocalDate departure) {
-
-        int stayCount = reservationMapper.countRoomStayConflict(roomId, arrival, departure);
-
-        return stayCount > 0;
-
+    private boolean hasStayConflict(Long roomId, LocalDateTime arrivalAt, LocalDateTime departureAt,
+                                    Long excludeStayId) {
+        LambdaQueryWrapper<StayOrder> wrapper = new LambdaQueryWrapper<StayOrder>()
+                .eq(StayOrder::getRoomId, roomId)
+                .eq(StayOrder::getStatus, StayStatus.IN_HOUSE);
+        if (excludeStayId != null) {
+            wrapper.ne(StayOrder::getId, excludeStayId);
+        }
+        List<StayOrder> stays = stayOrderMapper.selectList(wrapper);
+        for (StayOrder stay : stays) {
+            LocalDateTime stayStart = ReservationTimePolicy.effectiveStayStart(stay);
+            LocalDateTime stayEnd = ReservationTimePolicy.effectiveStayEnd(stay);
+            if (ReservationTimePolicy.intervalsConflict(stayStart, stayEnd, arrivalAt, departureAt)) {
+                return true;
+            }
+        }
+        return false;
     }
 
 
 
-    private Map<Long, String> loadTypeNames(List<Room> rooms) {
+    private Map<Long, RoomType> loadTypes(List<Room> rooms) {
 
-        Map<Long, String> map = new HashMap<Long, String>();
+        Map<Long, RoomType> map = new HashMap<Long, RoomType>();
 
         for (Room room : rooms) {
 
@@ -268,9 +367,7 @@ public class RoomAvailabilityService {
 
             if (typeId != null && !map.containsKey(typeId)) {
 
-                RoomType type = roomTypeService.getById(typeId);
-
-                map.put(typeId, type.getName());
+                map.put(typeId, roomTypeService.getById(typeId));
 
             }
 

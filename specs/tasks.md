@@ -200,6 +200,9 @@
 | T-ROOM-SVC-01 | `RoomTypeService` / `RoomService` 基础 CRUD | [依赖: T-ROOM-MAP-01] | 3h | 房号唯一 | 已完成 |
 | T-ROOM-SVC-02 | `RoomBoardService`：批量查房+算 daily_tags | [依赖: T-ROOM-SVC-01] | 4h | 无嵌套循环 | 已完成 |
 | T-ROOM-SVC-02a | 房态图展示态按查看日+预订时刻 | [依赖: T-RES-DB-01, T-ROOM-MAP-03] | 2h | 查看日不在占用区间不展示预订 | 已完成 |
+| T-ROOM-SVC-02b | 展示态：脏/空净不遮挡在住/预订；在住按日期区间 | [依赖: T-ROOM-SVC-02a, T-STAY-SVC-01] | 2h | 置脏后查看日仍显示预订/在住色 | 已完成 |
+| T-RES-SVC-02b | 在住冲突按 18:00/12:00+缓冲；相邻 23-24/24-25 可售 | [依赖: T-RES-SVC-02] | 2h | Walk-in 传时刻；非全天重叠 | 已完成 |
+| T-STAY-FE-04 | Walk-in 入住/离店时刻可编辑（默认 18:00/12:00） | [依赖: T-STAY-FE-01] | 1h | 与可售查询一致 | 已完成 |
 | T-ROOM-SVC-03 | `RoomMaintenanceService`：维修开始/结束 | [依赖: T-ROOM-SVC-04] | 3h | 写 maintenance_log | 已完成 |
 | T-ROOM-SVC-04 | `RoomStateMachine` 状态转换与 assert | [依赖: T-ROOM-SVC-01] | 4h | 非法转换抛 40001 | 已完成 |
 
@@ -336,53 +339,53 @@
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-STAY-FE-01 | 入住页：Walk-in / 预订入住 Tab | [依赖: T-STAY-CTL-01, T-STAY-CTL-02] | 5h | 两入口可用 | 待开始 |
-| T-STAY-FE-02 | 在住列表页 | [依赖: T-STAY-CTL-03] | 2h | 仅 IN_HOUSE | 待开始 |
-| T-STAY-FE-03 | 换房对话框+目标房选择 | [依赖: T-STAY-CTL-04] | 3h | 成功后刷新账单 | 待开始 |
-| T-STAY-FE-04 | 在住备注编辑 | [依赖: T-STAY-CTL-06] | 1h | 保存备注 | 待开始 |
+| T-STAY-FE-01 | 入住页：Walk-in / 预订入住 Tab | [依赖: T-STAY-CTL-01, T-STAY-CTL-02] | 5h | 两入口可用 | 已完成 |
+| T-STAY-FE-02 | 在住列表页 | [依赖: T-STAY-CTL-03] | 2h | 仅 IN_HOUSE | 已完成 |
+| T-STAY-FE-03 | 换房对话框+目标房选择 | [依赖: T-STAY-CTL-04] | 3h | 成功后刷新账单 | 已完成 |
+| T-STAY-FE-04 | 在住备注编辑 | [依赖: T-STAY-CTL-06] | 1h | 保存备注 | 已完成 |
 
 ### Controller 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-STAY-CTL-01 | `POST /api/v1/stays/walk-in` | [依赖: T-STAY-SVC-01] | 2h | 需开班（SHIFT） | 待开始 |
-| T-STAY-CTL-02 | `POST /stays/check-in-from-reservation` | [依赖: T-STAY-SVC-02] | 2h | 预订→CHECKED_IN | 待开始 |
-| T-STAY-CTL-03 | `GET /stays/in-house` | [依赖: T-STAY-SVC-01] | 1h | 列表 | 待开始 |
-| T-STAY-CTL-04 | `POST /stays/{id}/change-room` | [依赖: T-STAY-SVC-03] | 2h | 触发重算 | 待开始 |
-| T-STAY-CTL-06 | `PUT /stays/{id}/remark` | [依赖: T-STAY-SVC-01] | 1h | 备注 | 待开始 |
+| T-STAY-CTL-01 | `POST /api/v1/stays/walk-in` | [依赖: T-STAY-SVC-01] | 2h | 需开班（SHIFT） | 已完成 |
+| T-STAY-CTL-02 | `POST /stays/check-in-from-reservation` | [依赖: T-STAY-SVC-02] | 2h | 预订→CHECKED_IN | 已完成 |
+| T-STAY-CTL-03 | `GET /stays/in-house` | [依赖: T-STAY-SVC-01] | 1h | 列表 | 已完成 |
+| T-STAY-CTL-04 | `POST /stays/{id}/change-room` | [依赖: T-STAY-SVC-03] | 2h | 触发重算 | 已完成 |
+| T-STAY-CTL-06 | `PUT /stays/{id}/remark` | [依赖: T-STAY-SVC-01] | 1h | 备注 | 已完成 |
 
 ### Service 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-STAY-SVC-01 | `StayService.checkInWalkIn` | [依赖: T-ROOM-SVC-04, T-BILL-SVC-01, T-SHIFT-SVC-01] | 4h | 房态 OCCUPIED | 待开始 |
-| T-STAY-SVC-02 | `checkInFromReservation` | [依赖: T-RES-SVC-01, T-STAY-SVC-01] | 3h | TC-02 | 待开始 |
-| T-STAY-SVC-03 | `changeRoom`：原房脏、目标校验、调 Billing 重算 | [依赖: T-BILL-SVC-02, T-ROOM-SVC-04] | 4h | BR-06 | 待开始 |
+| T-STAY-SVC-01 | `StayService.checkInWalkIn` | [依赖: T-ROOM-SVC-04, T-BILL-SVC-01, T-SHIFT-SVC-01] | 4h | 房态 OCCUPIED | 已完成 |
+| T-STAY-SVC-02 | `checkInFromReservation` | [依赖: T-RES-SVC-01, T-STAY-SVC-01] | 3h | TC-02 | 已完成 |
+| T-STAY-SVC-03 | `changeRoom`：原房脏、目标校验、调 Billing 重算 | [依赖: T-BILL-SVC-02, T-ROOM-SVC-04] | 4h | BR-06 | 已完成 |
 
 ### Mapper 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-STAY-MAP-01 | `StayOrderMapper` / `StayGuestMapper` | [依赖: T-INFRA-DB-03] | 2h | 关联查询 | 待开始 |
+| T-STAY-MAP-01 | `StayOrderMapper` / `StayGuestMapper` | [依赖: T-INFRA-DB-03] | 2h | 关联查询 | 已完成 |
 
 ### Repository/数据持久化任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-STAY-REPO-01 | 实体 `StayOrder` / `StayGuest` | [依赖: T-INFRA-DB-01] | 1h | JavaDoc 完整 | 待开始 |
+| T-STAY-REPO-01 | 实体 `StayOrder` / `StayGuest` | [依赖: T-INFRA-DB-01] | 1h | JavaDoc 完整 | 已完成 |
 
 ### 页面测试方法
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-STAY-UT-FE-01 | 脏房不可选为 Walk-in 目标 | [依赖: T-STAY-FE-01] | 0.5h | 列表过滤 | 待开始 |
+| T-STAY-UT-FE-01 | 脏房不可选为 Walk-in 目标 | [依赖: T-STAY-FE-01] | 0.5h | 列表过滤 | 已完成 |
 
 ### 接口测试方法
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-STAY-IT-01 | Walk-in 成功 | [依赖: T-STAY-CTL-01] | 1h | TC-03 | 待开始 |
-| T-STAY-IT-02 | 预订入住成功 | [依赖: T-STAY-CTL-02] | 1h | TC-02 | 待开始 |
+| T-STAY-IT-01 | Walk-in 成功 | [依赖: T-STAY-CTL-01] | 1h | TC-03 | 已完成 |
+| T-STAY-IT-02 | 预订入住成功 | [依赖: T-STAY-CTL-02] | 1h | TC-02 | 已完成 |
 | T-STAY-IT-03 | 换房后 folio 金额变化 | [依赖: T-STAY-CTL-04] | 1h | TC-04 | 待开始 |
 
 ### 异常情况测试
@@ -390,10 +393,10 @@
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
 | T-STAY-EX-01 | 非空净房入住拒绝 40001 | [依赖: T-STAY-SVC-01] | 1h | TC-11 | 待开始 |
-| T-STAY-EX-02 | 重复入住同一房拦截 | [依赖: T-STAY-SVC-01] | 1h | 幂等/校验 | 待开始 |
-| T-STAY-EX-03 | 未开班 Walk-in 失败 40003 | [依赖: T-SHIFT-SVC-01] | 0.5h | OQ-03 | 待开始 |
+| T-STAY-EX-02 | 重复入住同一房拦截 | [依赖: T-STAY-SVC-01] | 1h | 幂等/校验 | 已完成 |
+| T-STAY-EX-03 | 未开班 Walk-in 失败 40003 | [依赖: T-SHIFT-SVC-01] | 0.5h | OQ-03 | 已完成 |
 
-**当前状态**：`待开始`
+**当前状态**：`已完成`（退房结账见 MOD-BILL；T-STAY-IT-03 换房金额断言待补）
 
 ---
 

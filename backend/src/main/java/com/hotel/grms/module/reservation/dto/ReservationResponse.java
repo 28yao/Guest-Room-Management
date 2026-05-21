@@ -1,5 +1,6 @@
 package com.hotel.grms.module.reservation.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -17,6 +18,7 @@ public class ReservationResponse {
     private String guestPhone;
     private Long roomTypeId;
     private String roomTypeName;
+    private BigDecimal rackRate;
     private Long roomId;
     private String roomNo;
     private LocalDate arrivalDate;
@@ -74,6 +76,14 @@ public class ReservationResponse {
 
     public void setRoomTypeName(String roomTypeName) {
         this.roomTypeName = roomTypeName;
+    }
+
+    public BigDecimal getRackRate() {
+        return rackRate;
+    }
+
+    public void setRackRate(BigDecimal rackRate) {
+        this.rackRate = rackRate;
     }
 
     public Long getRoomId() {

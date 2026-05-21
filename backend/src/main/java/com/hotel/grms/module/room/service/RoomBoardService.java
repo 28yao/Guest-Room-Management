@@ -66,10 +66,17 @@ public class RoomBoardService {
     private String resolveDisplayStatus(RoomBoardRowDto row) {
         String dbStatus = row.getStatus();
         boolean reservedOnView = row.getReservedOnViewDate() != null && row.getReservedOnViewDate() == 1;
+        boolean inHouseOnView = row.getInHouseOnViewDate() != null && row.getInHouseOnViewDate() == 1;
+        if (inHouseOnView) {
+            return RoomStatus.OCCUPIED;
+        }
         if (reservedOnView) {
             return RoomStatus.RESERVED;
         }
         if (RoomStatus.RESERVED.equals(dbStatus)) {
+            return RoomStatus.VACANT_CLEAN;
+        }
+        if (RoomStatus.OCCUPIED.equals(dbStatus)) {
             return RoomStatus.VACANT_CLEAN;
         }
         return dbStatus;

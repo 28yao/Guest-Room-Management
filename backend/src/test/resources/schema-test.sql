@@ -98,6 +98,8 @@ CREATE TABLE IF NOT EXISTS stay_order (
     reservation_id BIGINT,
     room_id BIGINT NOT NULL,
     room_type_id BIGINT NOT NULL,
+    guest_name VARCHAR(64) NOT NULL,
+    guest_phone VARCHAR(20) NOT NULL,
     arrival_date DATE NOT NULL,
     departure_date DATE NOT NULL,
     agreed_daily_rate DECIMAL(10, 2),
@@ -107,4 +109,42 @@ CREATE TABLE IF NOT EXISTS stay_order (
     check_out_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS stay_guest (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    stay_order_id BIGINT NOT NULL,
+    guest_name VARCHAR(64) NOT NULL,
+    guest_phone VARCHAR(20) NOT NULL,
+    id_card VARCHAR(32)
+);
+
+CREATE TABLE IF NOT EXISTS folio (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    stay_order_id BIGINT NOT NULL UNIQUE,
+    total_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    paid_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    status VARCHAR(32) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS folio_line (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    folio_id BIGINT NOT NULL,
+    line_type VARCHAR(32) NOT NULL DEFAULT 'ROOM',
+    description VARCHAR(256),
+    quantity INT NOT NULL DEFAULT 1,
+    unit_price DECIMAL(10, 2) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    active TINYINT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS shift_session (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    operator_id BIGINT NOT NULL,
+    opened_at TIMESTAMP NOT NULL,
+    closed_at TIMESTAMP,
+    status VARCHAR(16) NOT NULL
 );

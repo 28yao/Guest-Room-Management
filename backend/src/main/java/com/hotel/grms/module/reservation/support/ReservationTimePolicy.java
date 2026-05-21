@@ -1,6 +1,7 @@
 package com.hotel.grms.module.reservation.support;
 
 import com.hotel.grms.common.BusinessException;
+import com.hotel.grms.module.stay.entity.StayOrder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -90,5 +91,28 @@ public final class ReservationTimePolicy {
         LocalDateTime dayStart = viewDate.atStartOfDay();
         LocalDateTime dayEnd = viewDate.plusDays(1).atStartOfDay();
         return arrivalAt.isBefore(dayEnd) && departureAt.isAfter(dayStart);
+    }
+
+    /**
+     * 在住单有效入住时刻（已入住用 check_in_at，否则默认 18:00）。
+     *
+     * @param stay 在住单
+     * @return 入住时刻
+     */
+    public static LocalDateTime effectiveStayStart(StayOrder stay) {
+        if (stay.getCheckInAt() != null) {
+            return stay.getCheckInAt();
+        }
+        return LocalDateTime.of(stay.getArrivalDate(), DEFAULT_ARRIVAL_TIME);
+    }
+
+    /**
+     * 在住单有效离店时刻（离店日默认 12:00）。
+     *
+     * @param stay 在住单
+     * @return 离店时刻
+     */
+    public static LocalDateTime effectiveStayEnd(StayOrder stay) {
+        return LocalDateTime.of(stay.getDepartureDate(), DEFAULT_DEPARTURE_TIME);
     }
 }

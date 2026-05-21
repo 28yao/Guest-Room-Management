@@ -21,7 +21,8 @@
 | MOD-AUTH | 已完成 | 登录/JWT/RBAC；用户改密/删除、角色/直授 **恢复默认** |
 | MOD-ROOM | 已完成 | 房态图（含指定日期查看）、房型/客房、维修、置脏/置净、强制改态 |
 | MOD-RES | 已完成 | 预订 CRUD、预排房、释放/取消、可售查询 |
-| MOD-STAY 及以后 | 待开发 | 见 [tasks.md](./specs/tasks.md) §5 起 |
+| MOD-STAY | 已完成（首批） | Walk-in（可改 18:00/12:00）、预订入住、在住列表、换房、备注 |
+| MOD-BILL 及以后 | 待开发 | 见 [tasks.md](./specs/tasks.md) §6 起 |
 
 **默认管理员**：`admin` / `admin123`（`sql/V2__seed_data.sql`）
 
@@ -45,7 +46,10 @@ Guest Room Management/
 │   ├── V4__room_seed.sql       # 演示房型/客房（可选）
 │   ├── V5__schema_align_legacy.sql
 │   ├── V6__room_status_dirty_clean.sql
-│   └── V7__reservation_datetime.sql  # 预订时刻 + 默认 18:00/12:00 回填
+│   ├── V7__reservation_datetime.sql  # 预订时刻 + 默认 18:00/12:00 回填
+│   ├── V8__stay_order_guest.sql      # 在住单 guest_name/guest_phone
+│   ├── V9__folio_line_billing.sql    # 账单明细 quantity/unit_price
+│   └── V10__folio_timestamps.sql     # 账单主表 created_at/updated_at（换房重算）
 ├── backend/
 └── frontend/
 ```
@@ -72,6 +76,9 @@ mysql -u root -p grms < sql/V3__auth_add_description.sql
 mysql -u root -p grms < sql/V5__schema_align_legacy.sql
 mysql -u root -p grms < sql/V6__room_status_dirty_clean.sql
 mysql -u root -p grms < sql/V7__reservation_datetime.sql
+mysql -u root -p grms < sql/V8__stay_order_guest.sql
+mysql -u root -p grms < sql/V9__folio_line_billing.sql
+mysql -u root -p grms < sql/V10__folio_timestamps.sql
 # 房态图演示数据（可选）：
 mysql -u root -p grms < sql/V4__room_seed.sql
 ```

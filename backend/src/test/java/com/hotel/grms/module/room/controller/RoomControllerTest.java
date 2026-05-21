@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import com.hotel.grms.module.reservation.dto.AssignRoomRequest;
 import com.hotel.grms.module.reservation.dto.ReservationCreateRequest;
+import com.hotel.grms.module.stay.dto.WalkInCheckInRequest;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -95,6 +96,71 @@ class RoomControllerTest {
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("VACANT_CLEAN"))
                 .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].actualStatus").value("RESERVED"));
+        mockMvc.perform(get("/api/v1/rooms/board")
+                        .param("date", "2026-05-22")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("RESERVED"));
+    }
+
+    /**
+     * 查看日超出在住离店日后，展示态不再为在住（库内仍为 OCCUPIED）。
+     */
+    @Test
+    void boardHidesInHouseOutsideViewDate() throws Exception {
+        mockMvc.perform(post("/api/v1/shifts/open").header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$.code").value(0));
+        Long typeId = createRoomType();
+        Long roomId = createRoom(typeId, "808");
+        WalkInCheckInRequest checkIn = new WalkInCheckInRequest();
+        checkIn.setRoomId(roomId);
+        checkIn.setGuestName("在住展示测试");
+        checkIn.setGuestPhone("13800004444");
+        checkIn.setArrivalDate(LocalDate.of(2026, 5, 22));
+        checkIn.setDepartureDate(LocalDate.of(2026, 5, 23));
+        checkIn.setAgreedDailyRate(new BigDecimal("300"));
+        mockMvc.perform(post("/api/v1/stays/walk-in")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(checkIn)))
+                .andExpect(jsonPath("$.code").value(0));
+        mockMvc.perform(get("/api/v1/rooms/board")
+                        .param("date", "2026-05-23")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("OCCUPIED"));
+        mockMvc.perform(get("/api/v1/rooms/board")
+                        .param("date", "2026-05-24")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("VACANT_CLEAN"))
+                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].actualStatus").value("OCCUPIED"));
+    }
+
+    @Test
+    void boardShowsReservationWhenRoomDirtyOnViewDate() throws Exception {
+        Long typeId = createRoomType();
+        Long roomId = createRoom(typeId, "809");
+        Long reservationId = createReservation(typeId, LocalDate.of(2026, 5, 22), LocalDate.of(2026, 5, 23));
+        AssignRoomRequest assign = new AssignRoomRequest();
+        assign.setRoomId(roomId);
+        mockMvc.perform(post("/api/v1/reservations/" + reservationId + "/assign-room")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(assign)))
+                .andExpect(jsonPath("$.code").value(0));
+        mockMvc.perform(post("/api/v1/rooms/" + roomId + "/status/dirty")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(jsonPath("$.code").value(0));
+        mockMvc.perform(get("/api/v1/rooms/board")
+                        .param("date", "2026-05-22")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("RESERVED"))
+                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].actualStatus").value("DIRTY"));
+        mockMvc.perform(post("/api/v1/rooms/" + roomId + "/status/clean")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(jsonPath("$.code").value(0));
         mockMvc.perform(get("/api/v1/rooms/board")
                         .param("date", "2026-05-22")
                         .header("Authorization", "Bearer " + adminToken))

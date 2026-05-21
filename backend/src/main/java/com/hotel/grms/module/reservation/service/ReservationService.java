@@ -89,12 +89,13 @@ public class ReservationService {
      * @param arrivalFrom 入住日起
      * @param arrivalTo   入住日止
      * @param guestPhone  手机号模糊
+     * @param guestName   客人姓名模糊
      * @param page        页码
      * @param size        每页条数
      * @return 分页结果
      */
     public PageResult<ReservationResponse> list(String status, LocalDate arrivalFrom, LocalDate arrivalTo,
-                                                String guestPhone, int page, int size) {
+                                                String guestPhone, String guestName, int page, int size) {
         LambdaQueryWrapper<Reservation> wrapper = new LambdaQueryWrapper<Reservation>()
                 .orderByDesc(Reservation::getArrivalDate)
                 .orderByDesc(Reservation::getId);
@@ -109,6 +110,9 @@ public class ReservationService {
         }
         if (StringUtils.hasText(guestPhone)) {
             wrapper.like(Reservation::getGuestPhone, guestPhone);
+        }
+        if (StringUtils.hasText(guestName)) {
+            wrapper.like(Reservation::getGuestName, guestName);
         }
         Page<Reservation> pageQuery = new Page<Reservation>(page, size);
         Page<Reservation> result = reservationMapper.selectPage(pageQuery, wrapper);
@@ -306,6 +310,7 @@ public class ReservationService {
         if (entity.getRoomTypeId() != null) {
             RoomType type = roomTypeService.getById(entity.getRoomTypeId());
             response.setRoomTypeName(type.getName());
+            response.setRackRate(type.getRackRate());
         }
         if (entity.getRoomId() != null) {
             Room room = roomMapper.selectById(entity.getRoomId());

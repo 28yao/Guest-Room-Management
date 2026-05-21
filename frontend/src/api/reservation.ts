@@ -7,6 +7,7 @@ export interface ReservationVO {
   guestPhone: string
   roomTypeId: number
   roomTypeName?: string
+  rackRate?: number
   roomId?: number
   roomNo?: string
   arrivalDate: string
@@ -34,6 +35,7 @@ export interface AvailableRoomVO {
   roomNo: string
   roomTypeId: number
   roomTypeName: string
+  rackRate?: number
   floorNo: number
   version: number
 }
@@ -57,6 +59,7 @@ export function listReservationsApi(params: {
   arrivalFrom?: string
   arrivalTo?: string
   guestPhone?: string
+  guestName?: string
   page?: number
   size?: number
 }) {

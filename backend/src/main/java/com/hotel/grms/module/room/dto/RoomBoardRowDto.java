@@ -22,6 +22,7 @@ public class RoomBoardRowDto {
     private Integer expectedDeparture;
     private Integer reservedOnViewDate;
     private Integer expectedResDeparture;
+    private Integer inHouseOnViewDate;
 
     public Long getRoomId() {
         return roomId;
@@ -117,5 +118,13 @@ public class RoomBoardRowDto {
 
     public void setExpectedResDeparture(Integer expectedResDeparture) {
         this.expectedResDeparture = expectedResDeparture;
+    }
+
+    public Integer getInHouseOnViewDate() {
+        return inHouseOnViewDate;
+    }
+
+    public void setInHouseOnViewDate(Integer inHouseOnViewDate) {
+        this.inHouseOnViewDate = inHouseOnViewDate;
     }
 }

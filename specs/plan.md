@@ -179,8 +179,10 @@ operation_log (业务_id 多态)
 
 | 条件 | 展示态 |
 |------|--------|
-| 查看日落在有效预订占用区间 `[arrival_at, departure_at)` 且已 `room_id` | `RESERVED` |
+| 查看日落在在住 `arrival_date~departure_date` 内 | `OCCUPIED`（优先于库内脏/空净） |
+| 查看日落在有效预订占用区间且已 `room_id` | `RESERVED`（优先于库内脏/空净） |
 | 库内 `RESERVED` 但查看日不在上述区间 | `VACANT_CLEAN`（展示用） |
+| 库内 `OCCUPIED` 但查看日不在在住区间 | `VACANT_CLEAN`（展示用） |
 | 其他 | 与库内 `room.status` 一致 |
 
 占用区间重叠判定（排房/可售）：`existing.arrival_at < new.departure_at + 1h` 且 `new.arrival_at < existing.departure_at + 1h`。
