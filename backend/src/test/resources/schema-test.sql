@@ -177,3 +177,16 @@ CREATE TABLE IF NOT EXISTS shift_handover (
     pending_snapshot VARCHAR(4000),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS operation_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    biz_type VARCHAR(32) NOT NULL,
+    biz_id BIGINT NOT NULL,
+    operation_type VARCHAR(64) NOT NULL,
+    operator_id BIGINT NOT NULL,
+    operator_name VARCHAR(64) NOT NULL,
+    before_value CLOB,
+    after_value CLOB,
+    summary VARCHAR(512),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

@@ -35,6 +35,9 @@
           <el-menu-item v-if="auth.hasPermission('system:permission:grant')" index="/system/user-permissions">
             敏感权限直授
           </el-menu-item>
+          <el-menu-item v-if="auth.hasPermission('audit:view')" index="/system/audit">
+            操作审计
+          </el-menu-item>
         </el-sub-menu>
       </el-menu>
     </el-aside>
@@ -62,7 +65,12 @@ const auth = useAuthStore()
 const activeMenu = computed(() => route.path)
 
 const showSystemMenu = computed(() =>
-  auth.hasAnyPermission(['system:user:manage', 'system:role:manage', 'system:permission:grant'])
+  auth.hasAnyPermission([
+    'system:user:manage',
+    'system:role:manage',
+    'system:permission:grant',
+    'audit:view'
+  ])
 )
 
 async function onLogout() {

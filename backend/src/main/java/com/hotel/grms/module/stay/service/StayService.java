@@ -1,6 +1,11 @@
 package com.hotel.grms.module.stay.service;
 
 import com.hotel.grms.common.BusinessException;
+import com.hotel.grms.module.audit.support.AuditBizType;
+import com.hotel.grms.module.audit.support.AuditContextHolder;
+import com.hotel.grms.module.audit.support.AuditJsonHelper;
+import com.hotel.grms.module.audit.support.AuditOpType;
+import com.hotel.grms.module.audit.support.AuditedOperation;
 import com.hotel.grms.module.billing.service.BillingService;
 import com.hotel.grms.module.reservation.ReservationStatus;
 import com.hotel.grms.module.reservation.entity.Reservation;
@@ -61,13 +66,14 @@ public class StayService {
     private final ShiftSessionService shiftSessionService;
     private final BillingService billingService;
     private final FolioMapper folioMapper;
+    private final AuditJsonHelper auditJsonHelper;
 
     public StayService(StayOrderMapper stayOrderMapper, StayGuestMapper stayGuestMapper,
                        ReservationMapper reservationMapper, RoomService roomService,
                        RoomTypeService roomTypeService, RoomStateMachine roomStateMachine,
                        RoomAvailabilityService roomAvailabilityService,
                        ShiftSessionService shiftSessionService, BillingService billingService,
-                       FolioMapper folioMapper) {
+                       FolioMapper folioMapper, AuditJsonHelper auditJsonHelper) {
         this.stayOrderMapper = stayOrderMapper;
         this.stayGuestMapper = stayGuestMapper;
         this.reservationMapper = reservationMapper;
@@ -78,6 +84,7 @@ public class StayService {
         this.shiftSessionService = shiftSessionService;
         this.billingService = billingService;
         this.folioMapper = folioMapper;
+        this.auditJsonHelper = auditJsonHelper;
     }
 
     /**
@@ -87,6 +94,7 @@ public class StayService {
      * @return 在住详情
      */
     @Transactional(rollbackFor = Exception.class)
+    @AuditedOperation(bizType = AuditBizType.STAY, operationType = AuditOpType.STAY_CHECK_IN)
     public StayResponse checkInWalkIn(WalkInCheckInRequest request) {
         Long shiftId = shiftSessionService.requireOpenSessionId();
         assertDateRange(request.getArrivalDate(), request.getDepartureDate());
@@ -103,7 +111,12 @@ public class StayService {
         Long folioId = billingService.initFolioForStay(stay);
         billingService.settleFolioAtCheckIn(folioId, request.getPayments(), shiftId);
         roomService.transitionOccupancy(room.getId(), RoomStatus.OCCUPIED, null);
-        return getById(stay.getId());
+        StayResponse response = getById(stay.getId());
+        AuditContextHolder.bind(stay.getId(), null,
+                auditJsonHelper.pairs("stayNo", response.getStayNo(), "roomNo", response.getRoomNo(),
+                        "guestName", response.getGuestName()),
+                "Walk-in 入住");
+        return response;
     }
 
     /**
@@ -113,6 +126,7 @@ public class StayService {
      * @return 在住详情
      */
     @Transactional(rollbackFor = Exception.class)
+    @AuditedOperation(bizType = AuditBizType.STAY, operationType = AuditOpType.STAY_CHECK_IN_RES)
     public StayResponse checkInFromReservation(CheckInFromReservationRequest request) {
         Long shiftId = shiftSessionService.requireOpenSessionId();
         Reservation reservation = reservationMapper.selectById(request.getReservationId());
@@ -151,7 +165,12 @@ public class StayService {
         reservation.setStatus(ReservationStatus.CHECKED_IN);
         reservation.setRoomId(roomId);
         reservationMapper.updateById(reservation);
-        return getById(stay.getId());
+        StayResponse response = getById(stay.getId());
+        AuditContextHolder.bind(stay.getId(), null,
+                auditJsonHelper.pairs("stayNo", response.getStayNo(), "resNo", response.getResNo(),
+                        "roomNo", response.getRoomNo()),
+                "预订入住");
+        return response;
     }
 
     /**
@@ -227,12 +246,15 @@ public class StayService {
      * @return 更新后详情
      */
     @Transactional(rollbackFor = Exception.class)
+    @AuditedOperation(bizType = AuditBizType.STAY, operationType = AuditOpType.STAY_CHANGE_ROOM)
     public StayResponse changeRoom(Long id, ChangeRoomRequest request) {
         StayOrder stay = getEntity(id);
         assertInHouse(stay);
         if (stay.getRoomId().equals(request.getTargetRoomId())) {
             throw new BusinessException(40019, "目标客房与当前客房相同");
         }
+        Room oldRoom = roomService.getById(stay.getRoomId());
+        String beforeJson = auditJsonHelper.pairs("roomNo", oldRoom.getRoomNo(), "roomId", stay.getRoomId());
         Room target = roomService.getById(request.getTargetRoomId());
         roomStateMachine.assertCheckInAllowed(target);
         LocalDateTime stayStart = ReservationTimePolicy.effectiveStayStart(stay);
@@ -248,7 +270,11 @@ public class StayService {
         stay.setRoomTypeId(target.getRoomTypeId());
         stayOrderMapper.updateById(stay);
         billingService.recalculateFullStay(id);
-        return getById(id);
+        StayResponse response = getById(id);
+        AuditContextHolder.bind(id, beforeJson,
+                auditJsonHelper.pairs("roomNo", response.getRoomNo(), "roomId", response.getRoomId()),
+                "换房");
+        return response;
     }
 
     /**

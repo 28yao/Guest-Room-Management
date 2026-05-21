@@ -34,6 +34,7 @@ public class GlobalExceptionHandler {
                     + "sql/V9__folio_line_billing.sql（缺 folio_line.quantity/unit_price 列）、"
                     + "sql/V10__folio_timestamps.sql（缺 folio.created_at/updated_at 列）、"
                     + "sql/V17__shift_handover_align.sql（结班表缺 cash_total 等；交接班常见）、"
+                    + "sql/V18__operation_log_align.sql（审计表缺 operation_type；旧库为 action 列）、"
                     + "sql/V14__room_clean_status.sql（缺 room.clean_status 列），"
                     + "或重新执行 sql/V1、V2 全量建库";
 
@@ -161,6 +162,9 @@ public class GlobalExceptionHandler {
             String message = cursor.getMessage();
             if (message != null && (message.contains("Unknown column")
                     || message.contains("doesn't exist"))) {
+                if (message.contains("operation_type") || message.contains("operation_log")) {
+                    return "审计表结构与当前版本不一致，请在 grms 库执行 sql/V18__operation_log_align.sql（旧库 action 列须改为 operation_type），或重新执行 sql/V1、V2 全量建库";
+                }
                 if (message.contains("cash_total") || message.contains("wechat_total")
                         || message.contains("alipay_total") || message.contains("pending_snapshot")) {
                     return "结班表结构与当前版本不一致，请在 grms 库执行 sql/V17__shift_handover_align.sql（缺收款汇总列或仍为 snapshot_json；交接班常见），或重新执行 sql/V1、V2 全量建库";

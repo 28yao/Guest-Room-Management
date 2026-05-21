@@ -4,6 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hotel.grms.common.BusinessException;
 import com.hotel.grms.common.PageResult;
+import com.hotel.grms.module.audit.support.AuditBizType;
+import com.hotel.grms.module.audit.support.AuditContextHolder;
+import com.hotel.grms.module.audit.support.AuditJsonHelper;
+import com.hotel.grms.module.audit.support.AuditOpType;
+import com.hotel.grms.module.audit.support.AuditedOperation;
 import com.hotel.grms.module.reservation.ReservationStatus;
 import com.hotel.grms.module.billing.service.BillingService;
 import com.hotel.grms.module.reservation.dto.AssignRoomRequest;
@@ -53,11 +58,13 @@ public class ReservationService {
     private final RoomAvailabilityService roomAvailabilityService;
     private final BillingService billingService;
     private final ShiftSessionService shiftSessionService;
+    private final AuditJsonHelper auditJsonHelper;
 
     public ReservationService(ReservationMapper reservationMapper, RoomMapper roomMapper,
                               RoomService roomService, RoomTypeService roomTypeService,
                               RoomAvailabilityService roomAvailabilityService,
-                              BillingService billingService, ShiftSessionService shiftSessionService) {
+                              BillingService billingService, ShiftSessionService shiftSessionService,
+                              AuditJsonHelper auditJsonHelper) {
         this.reservationMapper = reservationMapper;
         this.roomMapper = roomMapper;
         this.roomService = roomService;
@@ -65,6 +72,7 @@ public class ReservationService {
         this.roomAvailabilityService = roomAvailabilityService;
         this.billingService = billingService;
         this.shiftSessionService = shiftSessionService;
+        this.auditJsonHelper = auditJsonHelper;
     }
 
     /**
@@ -176,9 +184,11 @@ public class ReservationService {
      * @return 更新后详情
      */
     @Transactional(rollbackFor = Exception.class)
+    @AuditedOperation(bizType = AuditBizType.RESERVATION, operationType = AuditOpType.RES_ASSIGN_ROOM)
     public ReservationResponse assignRoom(Long id, AssignRoomRequest request) {
         Reservation entity = getEntity(id);
         assertAssignableReservation(entity);
+        String beforeJson = auditJsonHelper.pairs("roomId", entity.getRoomId(), "status", entity.getStatus());
         Room target = roomService.getById(request.getRoomId());
         if (!target.getRoomTypeId().equals(entity.getRoomTypeId())) {
             throw new BusinessException(40016, "客房房型与预订房型不一致");
@@ -189,7 +199,11 @@ public class ReservationService {
         roomService.transitionOccupancy(request.getRoomId(), RoomStatus.RESERVED, null);
         entity.setRoomId(request.getRoomId());
         reservationMapper.updateById(entity);
-        return toResponse(reservationMapper.selectById(id));
+        ReservationResponse response = toResponse(reservationMapper.selectById(id));
+        AuditContextHolder.bind(id, beforeJson,
+                auditJsonHelper.pairs("roomId", response.getRoomId(), "roomNo", response.getRoomNo()),
+                "预订预排房");
+        return response;
     }
 
     /**
@@ -199,13 +213,18 @@ public class ReservationService {
      * @return 更新后详情
      */
     @Transactional(rollbackFor = Exception.class)
+    @AuditedOperation(bizType = AuditBizType.RESERVATION, operationType = AuditOpType.RES_CANCEL)
     public ReservationResponse cancel(Long id) {
         Reservation entity = getEntity(id);
         assertCancellable(entity);
+        String beforeJson = auditJsonHelper.pairs("status", entity.getStatus(), "resNo", entity.getResNo());
         releaseAssignedRoomIfNeeded(entity);
         entity.setStatus(ReservationStatus.CANCELLED);
         reservationMapper.updateById(entity);
-        return toResponse(reservationMapper.selectById(id));
+        ReservationResponse response = toResponse(reservationMapper.selectById(id));
+        AuditContextHolder.bind(id, beforeJson,
+                auditJsonHelper.pairs("status", response.getStatus()), "取消预订");
+        return response;
     }
 
     /**
@@ -216,9 +235,11 @@ public class ReservationService {
      * @return 更新后详情
      */
     @Transactional(rollbackFor = Exception.class)
+    @AuditedOperation(bizType = AuditBizType.RESERVATION, operationType = AuditOpType.RES_CANCEL_REFUND)
     public ReservationResponse cancelWithRefund(Long id, CancelWithRefundRequest request) {
         Reservation entity = getEntity(id);
         assertCancellable(entity);
+        String beforeJson = auditJsonHelper.pairs("status", entity.getStatus(), "resNo", entity.getResNo());
         releaseAssignedRoomIfNeeded(entity);
         entity.setStatus(ReservationStatus.CANCELLED);
         if (request != null && StringUtils.hasText(request.getRemark())) {
@@ -233,7 +254,12 @@ public class ReservationService {
                 billingService.recordReservationRefund(refund, request.getRefundMethod(), shiftId);
             }
         }
-        return toResponse(reservationMapper.selectById(id));
+        ReservationResponse response = toResponse(reservationMapper.selectById(id));
+        AuditContextHolder.bind(id, beforeJson,
+                auditJsonHelper.pairs("status", response.getStatus(), "refundAmount",
+                        request != null ? request.getRefundAmount() : null),
+                "退订退款");
+        return response;
     }
 
     /**
@@ -244,14 +270,20 @@ public class ReservationService {
      * @return 更新后详情
      */
     @Transactional(rollbackFor = Exception.class)
+    @AuditedOperation(bizType = AuditBizType.RESERVATION, operationType = AuditOpType.RES_RELEASE)
     public ReservationResponse release(Long id, ReleaseReservationRequest request) {
         Reservation entity = getEntity(id);
         assertReleasable(entity);
+        String beforeJson = auditJsonHelper.pairs("status", entity.getStatus(), "resNo", entity.getResNo());
         releaseAssignedRoomIfNeeded(entity);
         boolean noShow = request != null && Boolean.TRUE.equals(request.getNoShow());
         entity.setStatus(noShow ? ReservationStatus.NO_SHOW : ReservationStatus.RELEASED);
         reservationMapper.updateById(entity);
-        return toResponse(reservationMapper.selectById(id));
+        ReservationResponse response = toResponse(reservationMapper.selectById(id));
+        AuditContextHolder.bind(id, beforeJson,
+                auditJsonHelper.pairs("status", response.getStatus(), "noShow", noShow),
+                noShow ? "No-show 释放" : "手动释放预订");
+        return response;
     }
 
     private Reservation getEntity(Long id) {

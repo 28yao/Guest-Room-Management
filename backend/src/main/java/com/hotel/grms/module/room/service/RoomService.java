@@ -2,6 +2,11 @@ package com.hotel.grms.module.room.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hotel.grms.common.BusinessException;
+import com.hotel.grms.module.audit.support.AuditBizType;
+import com.hotel.grms.module.audit.support.AuditContextHolder;
+import com.hotel.grms.module.audit.support.AuditJsonHelper;
+import com.hotel.grms.module.audit.support.AuditOpType;
+import com.hotel.grms.module.audit.support.AuditedOperation;
 import com.hotel.grms.module.room.RoomCleanStatus;
 import com.hotel.grms.module.room.RoomStatus;
 import com.hotel.grms.module.room.dto.ForceStatusRequest;
@@ -36,13 +41,15 @@ public class RoomService {
     private final RoomTypeService roomTypeService;
     private final RoomStateMachine roomStateMachine;
     private final HousekeepingService housekeepingService;
+    private final AuditJsonHelper auditJsonHelper;
 
     public RoomService(RoomMapper roomMapper, RoomTypeService roomTypeService, RoomStateMachine roomStateMachine,
-                       @Lazy HousekeepingService housekeepingService) {
+                       @Lazy HousekeepingService housekeepingService, AuditJsonHelper auditJsonHelper) {
         this.roomMapper = roomMapper;
         this.roomTypeService = roomTypeService;
         this.roomStateMachine = roomStateMachine;
         this.housekeepingService = housekeepingService;
+        this.auditJsonHelper = auditJsonHelper;
     }
 
     /**
@@ -200,12 +207,19 @@ public class RoomService {
      * @return 更新后客房
      */
     @Transactional(rollbackFor = Exception.class)
+    @AuditedOperation(bizType = AuditBizType.ROOM, operationType = AuditOpType.ROOM_FORCE_STATUS)
     public Room forceStatus(Long roomId, ForceStatusRequest request) {
         Room room = getById(roomId);
+        String beforeJson = auditJsonHelper.pairs("status", room.getStatus(), "cleanStatus", room.getCleanStatus());
         applyVersion(room, request.getVersion());
         applyForceTarget(room, request.getTargetStatus());
         updateWithOptimisticLock(room);
-        return roomMapper.selectById(roomId);
+        Room updated = roomMapper.selectById(roomId);
+        AuditContextHolder.bind(roomId, beforeJson,
+                auditJsonHelper.pairs("status", updated.getStatus(), "cleanStatus", updated.getCleanStatus(),
+                        "targetStatus", request.getTargetStatus(), "reason", request.getReason()),
+                "强制改房态");
+        return updated;
     }
 
     private Room updateCleanStatus(Long roomId, String cleanStatus, Integer version) {

@@ -26,7 +26,8 @@
 | MOD-HK | 已完成（首批） | 保洁任务列表/完成；`hk01` 不可看房态图、在住（V16） |
 | MOD-SHIFT | 已完成（首批） | 开班/结班预览/关闭；待办阻断与强制结班 |
 | MOD-STAT | 已完成（首批） | 出租率快照、区间营收；`/stats`（`stat:view`） |
-| MOD-AUDIT 及以后 | 待开发 | 见 [tasks.md](./specs/tasks.md) §10 起 |
+| MOD-AUDIT | 已完成（首批） | 操作审计 `/system/audit`（`audit:view`） |
+| MOD-QA 及以后 | 待开发 | 见 [tasks.md](./specs/tasks.md) §11 |
 
 **默认账号**（`sql/V2__seed_data.sql`）：`admin` / `admin123`（管理员）；`hk01` / `admin123`（保洁，仅保洁任务）
 
@@ -96,6 +97,7 @@ mysql -u root -p grms < sql/V13__restore_room_clean_dirty_perms.sql
 mysql -u root -p grms < sql/V14__room_clean_status.sql
 mysql -u root -p grms < sql/V16__room_board_in_house_perms.sql
 mysql -u root -p grms < sql/V17__shift_handover_align.sql
+mysql -u root -p grms < sql/V18__operation_log_align.sql
 # 房态图演示数据（可选）：
 mysql -u root -p grms < sql/V4__room_seed.sql
 ```
@@ -119,6 +121,7 @@ Get-Content sql/V14__room_clean_status.sql -Encoding UTF8 -Raw | mysql -u root -
 | `folio_line.quantity` / `unit_price` | V9 |
 | `folio.created_at` / `updated_at` | V10 |
 | **`shift_handover.cash_total`（交接班报错，实为结班表）** | **V17** |
+| **`operation_log.operation_type`（操作审计页报错，旧库为 action 列）** | **V18** |
 | 预订退款 `payment.folio_id` 不可空 | V11 |
 | **`room.clean_status`（房态图整页报错）** | **V14**（执行后重启后端） |
 | **侧栏无「房态图」「在住管理」/ 接口 403**（保洁除外） | **V16**（补权限点并授予管理员/店长/前台；须在「角色权限」「敏感权限直授」中可见） |

@@ -700,32 +700,32 @@
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-AUDIT-FE-01 | 审计日志列表页 | [依赖: T-AUDIT-CTL-01] | 2h | 分页筛选 | 待开始 |
+| T-AUDIT-FE-01 | 审计日志列表页 | [依赖: T-AUDIT-CTL-01] | 2h | 分页筛选 | 已完成 |
 
 ### Controller 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-AUDIT-CTL-01 | `GET /api/v1/audit/logs` | [依赖: T-AUDIT-SVC-01] | 1h | `audit:view` | 待开始 |
+| T-AUDIT-CTL-01 | `GET /api/v1/audit/logs` | [依赖: T-AUDIT-SVC-01] | 1h | `audit:view` | 已完成 |
 
 ### Service 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-AUDIT-SVC-01 | `OperationLogService.save/query` | [依赖: T-AUDIT-MAP-01] | 2h | 分页查询 | 待开始 |
-| T-AUDIT-SVC-02 | `OperationLogAspect` 切面接入各模块 | [依赖: T-AUDIT-SVC-01] | 4h | 预订/入住/改价/换房/退房/释放/强改房态 | 待开始 |
+| T-AUDIT-SVC-01 | `OperationLogService.save/query` | [依赖: T-AUDIT-MAP-01] | 2h | 分页查询 | 已完成 |
+| T-AUDIT-SVC-02 | `OperationLogAspect` 切面接入各模块 | [依赖: T-AUDIT-SVC-01] | 4h | 预订/入住/改价/换房/退房/释放/强改房态 | 已完成 |
 
 ### Mapper 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-AUDIT-MAP-01 | `OperationLogMapper` | [依赖: T-INFRA-DB-03] | 1h | 插入+条件查询 | 待开始 |
+| T-AUDIT-MAP-01 | `OperationLogMapper` | [依赖: T-INFRA-DB-03] | 1h | 插入+条件查询 | 已完成 |
 
 ### Repository/数据持久化任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-AUDIT-REPO-01 | 实体 `OperationLog` | [依赖: T-INFRA-DB-01] | 0.5h | — | 待开始 |
+| T-AUDIT-REPO-01 | 实体 `OperationLog` | [依赖: T-INFRA-DB-01] | 0.5h | — | 已完成 |
 
 ### 页面测试方法
 
@@ -735,13 +735,13 @@
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-AUDIT-IT-01 | 改价后 audit 表有 before/after | [依赖: T-BILL-CTL-03] | 1h | TC-06 | 待开始 |
+| T-AUDIT-IT-01 | 改价后 audit 表有 before/after | [依赖: T-BILL-CTL-03] | 1h | TC-06 | 已完成 |
 
 ### 异常情况测试
 
 无。
 
-**当前状态**：`待开始`
+**当前状态**：`已完成`（首批）
 
 ---
 
@@ -804,9 +804,9 @@
 
 ```
 T-INFRA-* → T-AUTH-* → T-ROOM-* → T-RES-* → T-STAY-* + T-BILL-*（已完成首批）
-→ T-HK-*（已完成）→ T-SHIFT-*（已完成）→ T-STAT-*（已完成）→ T-AUDIT-* → T-QA-*
+→ T-HK-*（已完成）→ T-SHIFT-*（已完成）→ T-STAT-*（已完成）→ T-AUDIT-*（已完成）→ T-QA-*
 ```
 
-**下一执行**：`MOD-AUDIT`（见 §10）→ `T-QA`。
+**下一执行**：`T-QA`（见 §11）全流程与异常用例。
 
 **总工时估算（MVP）**：约 **185h**（含测试，不含可选 E2E）

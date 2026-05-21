@@ -96,6 +96,12 @@ const routes: RouteRecordRaw[] = [
         name: 'UserPermission',
         component: () => import('@/views/system/UserPermission.vue'),
         meta: { title: '敏感权限直授', permissions: ['system:permission:grant'] }
+      },
+      {
+        path: 'system/audit',
+        name: 'AuditLogList',
+        component: () => import('@/views/system/AuditLogList.vue'),
+        meta: { title: '操作审计', permissions: ['audit:view'] }
       }
     ]
   }

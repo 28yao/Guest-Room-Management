@@ -20,11 +20,26 @@ public final class SecurityUtils {
      * @return 用户 ID，未登录时返回 null
      */
     public static Long currentUserId() {
+        LoginUser user = currentLoginUser();
+        return user != null ? user.getUserId() : null;
+    }
+
+    /**
+     * 获取当前登录用户名。
+     *
+     * @return 用户名，未登录时返回 system
+     */
+    public static String currentUsername() {
+        LoginUser user = currentLoginUser();
+        return user != null ? user.getUsername() : "system";
+    }
+
+    private static LoginUser currentLoginUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof LoginUser)) {
             return null;
         }
-        return ((LoginUser) authentication.getPrincipal()).getUserId();
+        return (LoginUser) authentication.getPrincipal();
     }
 
     /**

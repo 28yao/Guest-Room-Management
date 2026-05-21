@@ -18,6 +18,11 @@ import com.hotel.grms.module.room.entity.RoomType;
 import com.hotel.grms.module.room.service.RoomTypeService;
 import com.hotel.grms.module.stay.StayStatus;
 import com.hotel.grms.module.stay.entity.StayOrder;
+import com.hotel.grms.module.audit.support.AuditBizType;
+import com.hotel.grms.module.audit.support.AuditContextHolder;
+import com.hotel.grms.module.audit.support.AuditJsonHelper;
+import com.hotel.grms.module.audit.support.AuditOpType;
+import com.hotel.grms.module.audit.support.AuditedOperation;
 import com.hotel.grms.module.stay.mapper.StayOrderMapper;
 import com.hotel.grms.security.SecurityUtils;
 import org.springframework.stereotype.Service;
@@ -53,14 +58,17 @@ public class BillingService {
     private final PaymentMapper paymentMapper;
     private final StayOrderMapper stayOrderMapper;
     private final RoomTypeService roomTypeService;
+    private final AuditJsonHelper auditJsonHelper;
 
     public BillingService(FolioMapper folioMapper, FolioLineMapper folioLineMapper, PaymentMapper paymentMapper,
-                          StayOrderMapper stayOrderMapper, RoomTypeService roomTypeService) {
+                          StayOrderMapper stayOrderMapper, RoomTypeService roomTypeService,
+                          AuditJsonHelper auditJsonHelper) {
         this.folioMapper = folioMapper;
         this.folioLineMapper = folioLineMapper;
         this.paymentMapper = paymentMapper;
         this.stayOrderMapper = stayOrderMapper;
         this.roomTypeService = roomTypeService;
+        this.auditJsonHelper = auditJsonHelper;
     }
 
     /**
@@ -117,6 +125,7 @@ public class BillingService {
      * @return 更新后账单
      */
     @Transactional(rollbackFor = Exception.class)
+    @AuditedOperation(bizType = AuditBizType.FOLIO, operationType = AuditOpType.FOLIO_ADJUST_PRICE)
     public FolioDetailResponse adjustAgreedDailyRate(Long folioId, BigDecimal agreedDailyRate) {
         Folio folio = folioMapper.selectById(folioId);
         if (folio == null) {
@@ -129,6 +138,8 @@ public class BillingService {
         if (!StayStatus.IN_HOUSE.equals(stayOrder.getStatus())) {
             throw new BusinessException(40025, "仅在住期间可改价");
         }
+        String beforeJson = auditJsonHelper.pairs("agreedDailyRate", stayOrder.getAgreedDailyRate(),
+                "totalAmount", folio.getTotalAmount());
         if (FolioStatus.CLOSED.equals(folio.getStatus())) {
             Folio reopen = new Folio();
             reopen.setId(folioId);
@@ -138,7 +149,11 @@ public class BillingService {
         stayOrder.setAgreedDailyRate(agreedDailyRate);
         stayOrderMapper.updateById(stayOrder);
         regenerateActiveLines(folioId, stayOrder);
-        return getFolioDetail(folioId);
+        FolioDetailResponse after = getFolioDetail(folioId);
+        String afterJson = auditJsonHelper.pairs("agreedDailyRate", agreedDailyRate,
+                "totalAmount", after.getTotalAmount());
+        AuditContextHolder.bind(folioId, beforeJson, afterJson, "调整协议日价");
+        return after;
     }
 
     /**

@@ -1,6 +1,11 @@
 package com.hotel.grms.module.billing.service;
 
 import com.hotel.grms.common.BusinessException;
+import com.hotel.grms.module.audit.support.AuditBizType;
+import com.hotel.grms.module.audit.support.AuditContextHolder;
+import com.hotel.grms.module.audit.support.AuditJsonHelper;
+import com.hotel.grms.module.audit.support.AuditOpType;
+import com.hotel.grms.module.audit.support.AuditedOperation;
 import com.hotel.grms.module.billing.entity.Folio;
 import com.hotel.grms.module.billing.mapper.FolioMapper;
 import com.hotel.grms.module.hk.service.HousekeepingService;
@@ -35,10 +40,12 @@ public class CheckoutService {
     private final HousekeepingService housekeepingService;
     private final ReservationMapper reservationMapper;
     private final StayService stayService;
+    private final AuditJsonHelper auditJsonHelper;
 
     public CheckoutService(StayOrderMapper stayOrderMapper, FolioMapper folioMapper, BillingService billingService,
                          RoomService roomService, HousekeepingService housekeepingService,
-                         ReservationMapper reservationMapper, StayService stayService) {
+                         ReservationMapper reservationMapper, StayService stayService,
+                         AuditJsonHelper auditJsonHelper) {
         this.stayOrderMapper = stayOrderMapper;
         this.folioMapper = folioMapper;
         this.billingService = billingService;
@@ -46,6 +53,7 @@ public class CheckoutService {
         this.housekeepingService = housekeepingService;
         this.reservationMapper = reservationMapper;
         this.stayService = stayService;
+        this.auditJsonHelper = auditJsonHelper;
     }
 
     /**
@@ -55,6 +63,7 @@ public class CheckoutService {
      * @return 已退房详情
      */
     @Transactional(rollbackFor = Exception.class)
+    @AuditedOperation(bizType = AuditBizType.STAY, operationType = AuditOpType.STAY_CHECKOUT)
     public StayResponse checkout(Long stayOrderId) {
         StayOrder stay = stayOrderMapper.selectById(stayOrderId);
         if (stay == null) {
@@ -83,6 +92,11 @@ public class CheckoutService {
         roomService.transitionOccupancy(stay.getRoomId(), RoomStatus.VACANT, null);
         roomService.markDirty(stay.getRoomId(), null);
         housekeepingService.createTaskOnDirty(stay.getRoomId());
-        return stayService.getById(stayOrderId);
+        StayResponse response = stayService.getById(stayOrderId);
+        AuditContextHolder.bind(stayOrderId,
+                auditJsonHelper.pairs("status", StayStatus.IN_HOUSE),
+                auditJsonHelper.pairs("status", response.getStatus(), "roomNo", response.getRoomNo()),
+                "退房释放");
+        return response;
     }
 }
