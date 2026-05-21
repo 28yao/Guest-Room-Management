@@ -12,13 +12,31 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
-    redirect: '/home',
+    redirect: '/rooms/board',
     children: [
       {
         path: 'home',
         name: 'Home',
         component: () => import('@/views/Home.vue'),
         meta: { title: '工作台' }
+      },
+      {
+        path: 'rooms/board',
+        name: 'RoomBoard',
+        component: () => import('@/views/room/RoomBoard.vue'),
+        meta: { title: '房态图' }
+      },
+      {
+        path: 'room-types',
+        name: 'RoomTypeManage',
+        component: () => import('@/views/room/RoomTypeManage.vue'),
+        meta: { title: '房型管理', permissions: ['room:type:manage'] }
+      },
+      {
+        path: 'rooms',
+        name: 'RoomManage',
+        component: () => import('@/views/room/RoomManage.vue'),
+        meta: { title: '客房管理', permissions: ['room:manage'] }
       },
       {
         path: 'system/users',

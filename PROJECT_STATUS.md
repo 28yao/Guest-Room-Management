@@ -10,7 +10,7 @@
 | 需求基线 | [specs/spec.md](./specs/spec.md) v1.0 |
 | 技术方案 | [specs/plan.md](./specs/plan.md) v1.0 |
 | 任务清单 | [specs/tasks.md](./specs/tasks.md) |
-| 最后更新 | 2026-05-21（MOD-AUTH 已完成） |
+| 最后更新 | 2026-05-21（MOD-ROOM 已完成） |
 
 ## 整体架构快照
 
@@ -38,7 +38,7 @@
     手动释放/取消                                              交班汇总收款与待办
 ```
 
-**代码现状**：MOD-INFRA、**MOD-AUTH（JWT+RBAC）** 已完成；下一模块 MOD-ROOM。
+**代码现状**：MOD-INFRA、MOD-AUTH、**MOD-ROOM（房态/房型/客房/维修）** 已完成；下一模块 MOD-RES。
 
 ## 里程碑进度
 
@@ -49,15 +49,16 @@
 | 项目管理文档 | 已完成 | PROJECT_STATUS、README、tasks.md |
 | 数据库与工程骨架（T-INFRA） | 已完成 | `sql/V1`、`V2`；Spring Boot + Vue3 工程 |
 | 认证与权限（MOD-AUTH） | 已完成 | JWT 登录、用户/角色/直授权限 |
-| 后端 MVP 其余模块 | 待开始 | 见 tasks.md §3 起 |
-| 前端 MVP 页面（T-FE） | 待开始 | 见 tasks.md |
+| 客房房态（MOD-ROOM） | 已完成 | 房态图、房型/客房 CRUD、维修、强制改态 |
+| 后端 MVP 其余模块 | 待开始 | 见 tasks.md §4 起 |
+| 前端 MVP 页面（T-FE） | 进行中 | MOD-ROOM 页面已交付 |
 | 集成测试与验收（T-QA） | 待开始 | TC-01～12 |
 
 ## 风险与阻塞点
 
 | 类型 | 描述 | 缓解措施 |
 |------|------|----------|
-| 进度 | 业务模块未启动 | 按 tasks.md 从 MOD-AUTH（§2）执行 |
+| 进度 | 预订/入住等业务待开发 | 按 tasks.md 从 MOD-RES（§4）执行 |
 | 业务 | OQ-01～05 已在 plan 锁定默认值 | 变更先改 spec.md 再改 plan/tasks |
 | 范围 | 会员/看板/OTA 易渗入 MVP | 以 spec §2.3 排除项为准 |
 | 质量 | 房态并发与超售 | 乐观锁 + RoomAvailabilityService（plan §3） |

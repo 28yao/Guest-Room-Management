@@ -1,4 +1,4 @@
-# 可执行任务清单（MVP）
+﻿# 可执行任务清单（MVP）
 
 | 属性 | 值 |
 |------|-----|
@@ -153,68 +153,68 @@
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-ROOM-FE-01 | 房态图 `RoomBoard.vue`（色块+预抵/预离标签） | [依赖: T-AUTH-FE-03, T-ROOM-CTL-03] | 5h | 50 间渲染流畅 | 待开始 |
-| T-ROOM-FE-02 | 房型管理页 CRUD | [依赖: T-ROOM-CTL-01] | 3h | 门市价可改 | 待开始 |
-| T-ROOM-FE-03 | 客房管理页 CRUD | [依赖: T-ROOM-CTL-02] | 3h | 房号唯一校验提示 | 待开始 |
-| T-ROOM-FE-04 | 维修对话框（原因、ETA 必填） | [依赖: T-ROOM-CTL-04] | 2h | 提交后房态维修 | 待开始 |
-| T-ROOM-FE-05 | 强制改态对话框（原因二次确认） | [依赖: T-ROOM-CTL-06] | 2h | 无权限不显示入口 | 待开始 |
+| T-ROOM-FE-01 | 房态图 `RoomBoard.vue`（色块+预抵/预离标签） | [依赖: T-AUTH-FE-03, T-ROOM-CTL-03] | 5h | 50 间渲染流畅 | 已完成 |
+| T-ROOM-FE-02 | 房型管理页 CRUD | [依赖: T-ROOM-CTL-01] | 3h | 门市价可改 | 已完成 |
+| T-ROOM-FE-03 | 客房管理页 CRUD | [依赖: T-ROOM-CTL-02] | 3h | 房号唯一校验提示 | 已完成 |
+| T-ROOM-FE-04 | 维修对话框（原因、ETA 必填） | [依赖: T-ROOM-CTL-04] | 2h | 提交后房态维修 | 已完成 |
+| T-ROOM-FE-05 | 强制改态对话框（原因二次确认） | [依赖: T-ROOM-CTL-06] | 2h | 无权限不显示入口 | 已完成 |
 
 ### Controller 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-ROOM-CTL-01 | `CRUD /api/v1/room-types` | [依赖: T-AUTH-SVC-01] | 2h | 权限 `room:type:manage` | 待开始 |
-| T-ROOM-CTL-02 | `CRUD /api/v1/rooms` | [依赖: T-ROOM-SVC-01] | 2h | 权限 `room:manage` | 待开始 |
-| T-ROOM-CTL-03 | `GET /api/v1/rooms/board` | [依赖: T-ROOM-SVC-02] | 2h | 含 status+daily_tags | 待开始 |
-| T-ROOM-CTL-04 | `POST /rooms/{id}/maintenance` | [依赖: T-ROOM-SVC-03] | 1h | BR-11 校验 | 待开始 |
-| T-ROOM-CTL-05 | `POST /rooms/{id}/maintenance/end` | [依赖: T-ROOM-SVC-03] | 1h | 结束维修 | 待开始 |
-| T-ROOM-CTL-06 | `POST /rooms/{id}/status/force` | [依赖: T-ROOM-SVC-04] | 1h | 需 `room:status:force` | 待开始 |
+| T-ROOM-CTL-01 | `CRUD /api/v1/room-types` | [依赖: T-AUTH-SVC-01] | 2h | 权限 `room:type:manage` | 已完成 |
+| T-ROOM-CTL-02 | `CRUD /api/v1/rooms` | [依赖: T-ROOM-SVC-01] | 2h | 权限 `room:manage` | 已完成 |
+| T-ROOM-CTL-03 | `GET /api/v1/rooms/board` | [依赖: T-ROOM-SVC-02] | 2h | 含 status+daily_tags | 已完成 |
+| T-ROOM-CTL-04 | `POST /rooms/{id}/maintenance` | [依赖: T-ROOM-SVC-03] | 1h | BR-11 校验 | 已完成 |
+| T-ROOM-CTL-05 | `POST /rooms/{id}/maintenance/end` | [依赖: T-ROOM-SVC-03] | 1h | 结束维修 | 已完成 |
+| T-ROOM-CTL-06 | `POST /rooms/{id}/status/force` | [依赖: T-ROOM-SVC-04] | 1h | 需 `room:status:force` | 已完成 |
 
 ### Service 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-ROOM-SVC-01 | `RoomTypeService` / `RoomService` 基础 CRUD | [依赖: T-ROOM-MAP-01] | 3h | 房号唯一 | 待开始 |
-| T-ROOM-SVC-02 | `RoomBoardService`：批量查房+算 daily_tags | [依赖: T-ROOM-SVC-01] | 4h | 无嵌套循环 | 待开始 |
-| T-ROOM-SVC-03 | `RoomMaintenanceService`：维修开始/结束 | [依赖: T-ROOM-SVC-04] | 3h | 写 maintenance_log | 待开始 |
-| T-ROOM-SVC-04 | `RoomStateMachine` 状态转换与 assert | [依赖: T-ROOM-SVC-01] | 4h | 非法转换抛 40001 | 待开始 |
+| T-ROOM-SVC-01 | `RoomTypeService` / `RoomService` 基础 CRUD | [依赖: T-ROOM-MAP-01] | 3h | 房号唯一 | 已完成 |
+| T-ROOM-SVC-02 | `RoomBoardService`：批量查房+算 daily_tags | [依赖: T-ROOM-SVC-01] | 4h | 无嵌套循环 | 已完成 |
+| T-ROOM-SVC-03 | `RoomMaintenanceService`：维修开始/结束 | [依赖: T-ROOM-SVC-04] | 3h | 写 maintenance_log | 已完成 |
+| T-ROOM-SVC-04 | `RoomStateMachine` 状态转换与 assert | [依赖: T-ROOM-SVC-01] | 4h | 非法转换抛 40001 | 已完成 |
 
 ### Mapper 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-ROOM-MAP-01 | `RoomTypeMapper` / `RoomMapper` | [依赖: T-INFRA-DB-03] | 2h | 乐观锁 version 更新 | 待开始 |
-| T-ROOM-MAP-02 | `RoomMaintenanceLogMapper` | [依赖: T-INFRA-DB-03] | 1h | 插入维修记录 | 待开始 |
-| T-ROOM-MAP-03 | 房态图聚合查询 SQL（预订/在住 JOIN） | [依赖: T-ROOM-MAP-01] | 2h | 单次查询出 board 数据 | 待开始 |
+| T-ROOM-MAP-01 | `RoomTypeMapper` / `RoomMapper` | [依赖: T-INFRA-DB-03] | 2h | 乐观锁 version 更新 | 已完成 |
+| T-ROOM-MAP-02 | `RoomMaintenanceLogMapper` | [依赖: T-INFRA-DB-03] | 1h | 插入维修记录 | 已完成 |
+| T-ROOM-MAP-03 | 房态图聚合查询 SQL（预订/在住 JOIN） | [依赖: T-ROOM-MAP-01] | 2h | 单次查询出 board 数据 | 已完成 |
 
 ### Repository/数据持久化任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-ROOM-REPO-01 | 实体 `RoomType` / `Room` / `RoomMaintenanceLog` | [依赖: T-INFRA-DB-01] | 1h | JavaDoc 完整 | 待开始 |
+| T-ROOM-REPO-01 | 实体 `RoomType` / `Room` / `RoomMaintenanceLog` | [依赖: T-INFRA-DB-01] | 1h | JavaDoc 完整 | 已完成 |
 
 ### 页面测试方法
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-ROOM-UT-FE-01 | 按楼层筛选房态图 | [依赖: T-ROOM-FE-01] | 0.5h | 筛选结果正确 | 待开始 |
-| T-ROOM-UT-FE-02 | 无强制权限不显示强制改态按钮 | [依赖: T-ROOM-FE-05] | 0.5h | 按钮隐藏 | 待开始 |
+| T-ROOM-UT-FE-01 | 按楼层筛选房态图 | [依赖: T-ROOM-FE-01] | 0.5h | 筛选结果正确 | 已完成 |
+| T-ROOM-UT-FE-02 | 无强制权限不显示强制改态按钮 | [依赖: T-ROOM-FE-05] | 0.5h | 按钮隐藏 | 已完成 |
 
 ### 接口测试方法
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-ROOM-IT-01 | 房态图接口返回预抵标签 | [依赖: T-ROOM-CTL-03] | 1h | 有当日预订则带标签 | 待开始 |
-| T-ROOM-IT-02 | 维修缺少原因返回 400 | [依赖: T-ROOM-CTL-04] | 0.5h | 校验失败 | 待开始 |
+| T-ROOM-IT-01 | 房态图接口返回预抵标签 | [依赖: T-ROOM-CTL-03] | 1h | 有当日预订则带标签 | 已完成 |
+| T-ROOM-IT-02 | 维修缺少原因返回 400 | [依赖: T-ROOM-CTL-04] | 0.5h | 校验失败 | 已完成 |
 
 ### 异常情况测试
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-ROOM-EX-01 | 非法状态迁移被拒绝（40001） | [依赖: T-ROOM-SVC-04] | 1h | TC-12 对应 | 待开始 |
-| T-ROOM-EX-02 | 乐观锁冲突返回 40901 | [依赖: T-ROOM-MAP-01] | 1h | 并发更新失败可刷新 | 待开始 |
+| T-ROOM-EX-01 | 非法状态迁移被拒绝（40001） | [依赖: T-ROOM-SVC-04] | 1h | TC-12 对应 | 已完成 |
+| T-ROOM-EX-02 | 乐观锁冲突返回 40901 | [依赖: T-ROOM-MAP-01] | 1h | 并发更新失败可刷新 | 已完成 |
 
-**当前状态**：`待开始`
+**当前状态**：`已完成`
 
 ---
 

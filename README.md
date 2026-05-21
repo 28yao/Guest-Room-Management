@@ -53,6 +53,7 @@ mysql -u root -p grms < sql/V1__init_schema.sql
 mysql -u root -p grms < sql/V2__seed_data.sql
 # 若库是早期版本建的（sys_role / sys_permission 无 description 列），再执行：
 mysql -u root -p grms < sql/V3__auth_add_description.sql
+mysql -u root -p grms < sql/V4__room_seed.sql
 ```
 
 ### 后端

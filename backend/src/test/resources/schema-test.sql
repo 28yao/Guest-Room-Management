@@ -38,3 +38,71 @@ CREATE TABLE IF NOT EXISTS sys_user_permission (
     permission_id BIGINT NOT NULL,
     PRIMARY KEY (user_id, permission_id)
 );
+
+CREATE TABLE IF NOT EXISTS room_type (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(64) NOT NULL,
+    description VARCHAR(256),
+    rack_rate DECIMAL(10, 2) NOT NULL,
+    bed_type VARCHAR(32),
+    window_type VARCHAR(32),
+    non_smoking TINYINT NOT NULL DEFAULT 0,
+    max_guests INT NOT NULL DEFAULT 2,
+    status TINYINT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS room (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    room_no VARCHAR(16) NOT NULL UNIQUE,
+    room_type_id BIGINT NOT NULL,
+    floor_no INT NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    version INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS room_maintenance_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    room_id BIGINT NOT NULL,
+    reason VARCHAR(512) NOT NULL,
+    expected_recovery_at TIMESTAMP NOT NULL,
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ended_at TIMESTAMP,
+    operator_id BIGINT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS reservation (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    res_no VARCHAR(32) NOT NULL UNIQUE,
+    guest_name VARCHAR(64) NOT NULL,
+    guest_phone VARCHAR(20) NOT NULL,
+    room_type_id BIGINT,
+    room_id BIGINT,
+    arrival_date DATE NOT NULL,
+    departure_date DATE NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    remark VARCHAR(512),
+    created_by BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS stay_order (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    stay_no VARCHAR(32) NOT NULL UNIQUE,
+    reservation_id BIGINT,
+    room_id BIGINT NOT NULL,
+    room_type_id BIGINT NOT NULL,
+    arrival_date DATE NOT NULL,
+    departure_date DATE NOT NULL,
+    agreed_daily_rate DECIMAL(10, 2),
+    status VARCHAR(32) NOT NULL,
+    remark VARCHAR(512),
+    check_in_at TIMESTAMP NOT NULL,
+    check_out_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

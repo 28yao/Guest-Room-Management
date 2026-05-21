@@ -3,6 +3,9 @@
     <el-aside width="220px" class="aside">
       <div class="logo">GRMS</div>
       <el-menu :default-active="activeMenu" router>
+        <el-menu-item index="/rooms/board">房态图</el-menu-item>
+        <el-menu-item v-if="auth.hasPermission('room:manage')" index="/rooms">客房管理</el-menu-item>
+        <el-menu-item v-if="auth.hasPermission('room:type:manage')" index="/room-types">房型管理</el-menu-item>
         <el-menu-item index="/home">工作台</el-menu-item>
         <el-sub-menu v-if="showSystemMenu" index="system">
           <template #title>系统管理</template>
