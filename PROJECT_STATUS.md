@@ -11,7 +11,7 @@
 | 技术方案 | [specs/plan.md](./specs/plan.md) v1.0 |
 | 任务清单 | [specs/tasks.md](./specs/tasks.md) |
 | 手动验收 | [docs/MANUAL_ACCEPTANCE.md](./docs/MANUAL_ACCEPTANCE.md) |
-| 最后更新 | 2026-05-21（MOD-STAY 入住与在住） |
+| 最后更新 | 2026-05-21（MOD-BILL 退房结账首批） |
 
 ## 整体架构快照
 
@@ -39,13 +39,19 @@
     手动释放/取消                                              交班汇总收款与待办
 ```
 
-**代码现状**：MOD-INFRA、MOD-AUTH、MOD-ROOM、MOD-RES、**MOD-STAY（首批）** 已完成；下一模块 **MOD-BILL（退房结账）**。
+**代码现状**：MOD-INFRA、MOD-AUTH、MOD-ROOM、MOD-RES、MOD-STAY、**MOD-BILL（首批）** 已完成；下一模块 **MOD-HK（保洁任务）**。
 
-### 近期交付摘要（MOD-STAY）
+### 近期交付摘要（MOD-BILL）
+
+- **入住时结账**：Walk-in/预订入住须收齐整段房费后关账
+- **退房**：`POST /stays/{id}/checkout` 仅释放客房（入住已结账）；置脏 + `hk_task`
+- 在住「**退房**」/「**退款**」；办理入住页收款；`FolioControllerTest` 覆盖 40004/退房释放
+
+### 历史交付（MOD-STAY）
 
 - Walk-in / 预订入住（默认 18:00/12:00 可改）；开班校验；在住列表、换房、备注
 - 房态图：查看日展示在住/预订优先于脏房；点击客房日程+快速预订/入住（T-ROOM-FE-09）
-- 在住管理：客人姓名查询、退订（退款）；房态图订单行换房/退订、**净/脏一键切换**（任意占用态，2026-05-21）
+- 在住管理：客人姓名查询、**退款**；房态图换房/退款、**净/脏一键切换**
 - 账单基础：`BillingService` 按晚生成 `folio_line`；交班基础：`POST/GET shifts`
 - 前端 `/check-in`、`/in-house`
 
@@ -71,8 +77,9 @@
 | 认证与权限（MOD-AUTH） | 已完成 | JWT、RBAC、改密、恢复默认 |
 | 客房房态（MOD-ROOM） | 已完成 | 房态图、CRUD、维修、置脏/置净、强改 |
 | 预订管理（MOD-RES） | 已完成 | 手工预订、预排房、释放、可售校验 |
-| 入住与在住（MOD-STAY） | 已完成（首批） | Walk-in、预订入住、换房、备注；退房待 MOD-BILL |
-| 后端 MVP 其余模块 | 待开始 | MOD-BILL → MOD-HK → MOD-SHIFT 结班 |
+| 入住与在住（MOD-STAY） | 已完成（首批） | Walk-in、预订入住、换房、备注、提前退房退款 |
+| 账单退房（MOD-BILL） | 已完成（首批） | 入住结账、改价；退房仅释放房 |
+| 后端 MVP 其余模块 | 待开始 | MOD-HK → MOD-SHIFT 结班 → MOD-STAT/AUDIT |
 | 集成测试与验收（T-QA） | 待开始 | TC-01～12 |
 
 ## 风险与阻塞点
@@ -80,7 +87,7 @@
 | 类型 | 描述 | 缓解措施 |
 |------|------|----------|
 | 缺陷 | **BUG-AUTH-01**：角色/直授后用户管理前端仍无权限 | 未修复，后期处理；用户管理用 `admin` |
-| 进度 | 退房结账/保洁/结班待开发 | 按 tasks.md MOD-BILL 起执行 |
+| 进度 | 保洁/结班待开发 | 按 tasks.md MOD-HK 起执行 |
 | 环境 | 旧库缺列导致 50002 | README §数据库：V3～V14（房态图常见缺 **V14** `clean_status`；入住 V9、换房 V10） |
 | 业务 | OQ-01～05 已在 plan 锁定 | 变更先改 spec |
 | 质量 | 房态并发与超售 | 乐观锁 + 可售校验（预订已接入） |

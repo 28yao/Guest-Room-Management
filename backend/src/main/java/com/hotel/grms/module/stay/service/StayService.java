@@ -88,7 +88,7 @@ public class StayService {
      */
     @Transactional(rollbackFor = Exception.class)
     public StayResponse checkInWalkIn(WalkInCheckInRequest request) {
-        shiftSessionService.requireOpenSessionId();
+        Long shiftId = shiftSessionService.requireOpenSessionId();
         assertDateRange(request.getArrivalDate(), request.getDepartureDate());
         Room room = roomService.getById(request.getRoomId());
         roomStateMachine.assertCheckInAllowed(room);
@@ -100,7 +100,8 @@ public class StayService {
                 request.getAgreedDailyRate(), request.getRemark(),
                 request.getGuestName(), request.getGuestPhone());
         insertGuest(stay.getId(), request.getGuestName(), request.getGuestPhone(), request.getIdCard());
-        billingService.initFolioForStay(stay);
+        Long folioId = billingService.initFolioForStay(stay);
+        billingService.settleFolioAtCheckIn(folioId, request.getPayments(), shiftId);
         roomService.transitionOccupancy(room.getId(), RoomStatus.OCCUPIED, null);
         return getById(stay.getId());
     }
@@ -113,7 +114,7 @@ public class StayService {
      */
     @Transactional(rollbackFor = Exception.class)
     public StayResponse checkInFromReservation(CheckInFromReservationRequest request) {
-        shiftSessionService.requireOpenSessionId();
+        Long shiftId = shiftSessionService.requireOpenSessionId();
         Reservation reservation = reservationMapper.selectById(request.getReservationId());
         if (reservation == null) {
             throw new BusinessException(40012, "预订不存在");
@@ -144,7 +145,8 @@ public class StayService {
                 reservation.getDepartureDate(), agreedRate, request.getRemark(),
                 reservation.getGuestName(), reservation.getGuestPhone());
         insertGuest(stay.getId(), reservation.getGuestName(), reservation.getGuestPhone(), null);
-        billingService.initFolioForStay(stay);
+        Long folioId = billingService.initFolioForStay(stay);
+        billingService.settleFolioAtCheckIn(folioId, request.getPayments(), shiftId);
         roomService.transitionOccupancy(room.getId(), RoomStatus.OCCUPIED, null);
         reservation.setStatus(ReservationStatus.CHECKED_IN);
         reservation.setRoomId(roomId);

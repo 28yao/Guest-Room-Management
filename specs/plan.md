@@ -127,7 +127,7 @@ Guest Room Management/
 | BR-04 | 取消无罚金 | 账单层不生成取消费用项 |
 | BR-05 | 改价须权限 | `@PreAuthorize` + `PERM_PRICE_ADJUST` |
 | BR-06 | 换房整段重算 | `BillingService.recalculateFullStay()` |
-| BR-07 | 退房须结清 | `CheckoutService` 校验应付=已付 |
+| BR-07 | 入住须结清 | `BillingService.settleFolioAtCheckIn`；退房仅释放房 |
 | BR-08 | 无押金 | 数据模型无押金字段 |
 | BR-09 | 自然日营业日 | `BusinessDateProvider.today()` = `LocalDate.now()` |
 | BR-10 | 脏房→保洁→空净 | 脏房 INSERT `hk_task`；完成 CLOSE task + `room.status=VACANT_CLEAN` |
@@ -242,14 +242,15 @@ operation_log (业务_id 多态)
 2. `RoomStateMachine.assertCheckInAllowed(room)`；
 3. 创建 `stay_order`、`stay_guest`、`folio`；
 4. `BillingService.initFolioLines()` 按晚生成房费行；
-5. `room.status = OCCUPIED`；
-6. 审计。
+5. **`BillingService.settleFolioAtCheckIn()`**：分笔收款合计=应付，关账（BR-07）；
+6. `room.status = OCCUPIED`；
+7. 审计。
 
 #### 3.4.3 预订入住 — `StayService.checkInFromReservation`
 
 1. 预订状态 `CONFIRMED` 且已排房；
 2. 冲突校验（维修、在住等）；
-3. 同上创建在住单；预订 → `CHECKED_IN`；
+3. 同上创建在住单并 **入住时结清**；预订 → `CHECKED_IN`；
 4. 若房间为 `RESERVED` → `OCCUPIED`。
 
 #### 3.4.4 换房 — `StayService.changeRoom`
@@ -260,14 +261,12 @@ operation_log (业务_id 多态)
 4. `BillingService.recalculateFullStay(stayOrderId)`（BR-06）；
 5. 审计。
 
-#### 3.4.5 退房 — `CheckoutService.checkout`
+#### 3.4.5 退房 — `CheckoutService.releaseRoom`（`POST /stays/{id}/checkout`）
 
-1. `BillingService.recalculateFullStay` 最终计价；
-2. 校验 `folio.balance == 0`（BR-07）；
-3. `stay_order.status = CHECKED_OUT`；
-4. `room.status = DIRTY` → 创建 `hk_task`；
-5. 支付记录关联 `shift_session_id`；
-6. 审计。
+1. 校验账单已 **CLOSED**（入住时已结清）；
+2. `stay_order.status = CHECKED_OUT`；
+3. `room` 占用态 → `VACANT`，保洁态 → `DIRTY`，创建 `hk_task`；
+4. 审计（不再次收款）。
 
 #### 3.4.6 手动释放预订 — `ReservationService.release`
 
@@ -316,7 +315,7 @@ effectiveDailyRate = stay_order.agreed_daily_rate ?? room_type.rack_rate
 | `stay:checkin` | 入住 | FRONT |
 | `stay:change_room` | 换房 | FRONT |
 | `billing:price:adjust` | 改价 | 仅 ADMIN 可授给用户 |
-| `billing:checkout` | 退房结账 | FRONT |
+| `billing:checkout` | 入住结账/退款/退房 | FRONT |
 | `hk:view` | 待扫列表 | HK, FRONT(可选) |
 | `hk:complete` | 完成保洁 | HK |
 | `shift:open` | 开班 | FRONT |
@@ -559,7 +558,7 @@ CREATE TABLE shift_session (
 | PAGE-RES-DETAIL | `/reservations/:id` | 预订详情/排房/释放 | FRONT | §6.3–6.4 |
 | PAGE-CHECKIN | `/check-in` | 入住（Walk-in/预订） | FRONT | §7 |
 | PAGE-INHOUSE | `/in-house` | 在住管理/换房/改价 | FRONT | §7 |
-| PAGE-CHECKOUT | `/checkout/:stayId` | 退房结账 | FRONT | §8 |
+| PAGE-CHECKIN | `/check-in` | 办理入住（含结账） | FRONT | §7、§8 |
 | PAGE-HK | `/housekeeping` | 待打扫 | HK | §9 |
 | PAGE-SHIFT | `/shift` | 开班/结班 | FRONT | §11.1 |
 | PAGE-STAT | `/stats` | 简易统计 | MANAGER, ADMIN | §11.2 |
@@ -577,7 +576,8 @@ CREATE TABLE shift_session (
 | 敏感直授恢复默认 | 确认后清空直授 | Y |
 | 管理员修改用户密码 | 新密码+确认密码 | N（管理员操作） |
 | 释放预订/No-show | 确认无罚金 | Y |
-| 退房结账 | 展示分笔支付，合计=应付 | Y |
+| 办理入住 | 展示分笔支付，合计=应付后方可入住 | Y |
+| 退房 | 二次确认，仅释放客房 | Y |
 | 结班有待办 | 阻断或经理授权 | Y |
 | 删除用户/停用 | 确认 | Y |
 

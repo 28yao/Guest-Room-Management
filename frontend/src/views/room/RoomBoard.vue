@@ -93,7 +93,7 @@
               type="danger"
               @click="openVoidFromOrder(row)"
             >
-              退订（退款）
+              退款
             </el-button>
             <el-button
               v-if="row.orderType === 'RESERVATION' && canManageRes && isResCancellable(row.status)"
@@ -101,7 +101,7 @@
               type="danger"
               @click="openCancelRefundFromOrder(row)"
             >
-              退订（退款）
+              退款
             </el-button>
           </template>
         </el-table-column>
@@ -315,10 +315,26 @@
         <el-form-item label="备注">
           <el-input v-model="quickWalkForm.remark" type="textarea" />
         </el-form-item>
+        <el-divider content-position="left">入住结账</el-divider>
+        <el-form-item label="应付房费">
+          <span class="charge-total">¥{{ quickWalkChargeable }}</span>
+          <span class="hint-inline">（{{ quickWalkNights }} 晚）</span>
+        </el-form-item>
+        <el-form-item label="收款" required>
+          <div class="pay-row">
+            <el-select v-model="quickWalkPayMethod" style="width: 110px">
+              <el-option label="现金" value="CASH" />
+              <el-option label="微信" value="WECHAT" />
+              <el-option label="支付宝" value="ALIPAY" />
+            </el-select>
+            <el-input-number v-model="quickWalkPayAmount" :min="0.01" :precision="2" style="width: 140px" />
+            <el-button link type="primary" @click="quickWalkPayAmount = quickWalkChargeable">收齐</el-button>
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="quickWalkVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitQuickWalkIn">确认入住</el-button>
+        <el-button type="primary" :loading="saving" @click="submitQuickWalkIn">确认入住并结账</el-button>
       </template>
     </el-dialog>
 
@@ -344,7 +360,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="boardVoidVisible" title="退订（退款）— 在住提前退房" width="480px">
+    <el-dialog v-model="boardVoidVisible" title="退款— 在住提前退房" width="480px">
       <el-form label-width="110px">
         <el-form-item label="在住单">
           <span>{{ boardVoidOrder?.orderNo }}</span>
@@ -382,7 +398,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="boardCancelResVisible" title="退订（退款）— 取消预订" width="440px">
+    <el-dialog v-model="boardCancelResVisible" title="退款— 取消预订" width="440px">
       <el-form label-width="100px">
         <el-form-item label="预订单号">
           <span>{{ boardCancelResOrder?.orderNo }}</span>
@@ -428,7 +444,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import {
@@ -460,7 +476,7 @@ import {
 } from '@/api/reservation'
 import { getCurrentShift } from '@/api/shift'
 import { walkInCheckIn, changeRoom, voidCheckout, updateStayRemark, getStay, type StayVO } from '@/api/stay'
-import { computeRefundPreview } from '@/utils/billing'
+import { computeCheckInChargeable, computeRefundPreview, computeStayNights } from '@/utils/billing'
 import type { AvailableRoomVO } from '@/api/reservation'
 import { combineDateTime, DEFAULT_ARRIVAL_TIME, DEFAULT_DEPARTURE_TIME } from '@/utils/datetime'
 
@@ -545,6 +561,25 @@ const quickWalkForm = reactive({
   departureTime: DEFAULT_DEPARTURE_TIME,
   agreedDailyRate: undefined as number | undefined,
   remark: ''
+})
+const quickWalkPayMethod = ref('CASH')
+const quickWalkPayAmount = ref(0)
+
+const quickWalkNights = computed(() =>
+  quickWalkForm.arrivalDate && quickWalkForm.departureDate
+    ? computeStayNights(quickWalkForm.arrivalDate, quickWalkForm.departureDate)
+    : 0
+)
+const quickWalkChargeable = computed(() =>
+  computeCheckInChargeable(
+    Number(quickWalkForm.agreedDailyRate ?? 0),
+    quickWalkForm.arrivalDate,
+    quickWalkForm.departureDate
+  )
+)
+
+watch(quickWalkChargeable, (v) => {
+  quickWalkPayAmount.value = v
 })
 
 function occupancyLabel(s: string) {
@@ -780,7 +815,7 @@ async function submitBoardVoid() {
   if (!boardVoidOrder.value || !boardVoidForm.chargeThroughDate) return
   if (!(await requireOpenShift())) return
   try {
-    await ElMessageBox.confirm('确认提前退房并退款？客房将置为脏房。', '退订（退款）', { type: 'warning' })
+    await ElMessageBox.confirm('确认提前退房并退款？客房将置为脏房。', '退款', { type: 'warning' })
   } catch {
     return
   }
@@ -792,7 +827,7 @@ async function submitBoardVoid() {
       remark: boardVoidForm.remark,
       refundAmount: boardVoidForm.refundAmount ?? 0
     })
-    ElMessage.success('已办理退订（退款）')
+    ElMessage.success('已办理退款')
     boardVoidVisible.value = false
     actionVisible.value = false
     await load()
@@ -816,7 +851,7 @@ async function submitBoardCancelRefund() {
   if (!boardCancelResOrder.value) return
   if ((boardCancelResForm.refundAmount ?? 0) > 0 && !(await requireOpenShift())) return
   try {
-    await ElMessageBox.confirm('确认取消该预订？将解除房态锁定。', '退订（退款）', { type: 'warning' })
+    await ElMessageBox.confirm('确认取消该预订？将解除房态锁定。', '退款', { type: 'warning' })
   } catch {
     return
   }
@@ -1002,6 +1037,10 @@ async function submitQuickWalkIn() {
     ElMessage.warning('请先开班后再办理入住')
     return
   }
+  if (Math.abs(quickWalkPayAmount.value - quickWalkChargeable.value) > 0.009) {
+    ElMessage.warning('收款金额须等于应付房费')
+    return
+  }
   saving.value = true
   try {
     await walkInCheckIn({
@@ -1013,7 +1052,8 @@ async function submitQuickWalkIn() {
       arrivalAt: combineDateTime(quickWalkForm.arrivalDate, quickWalkForm.arrivalTime),
       departureAt: combineDateTime(quickWalkForm.departureDate, quickWalkForm.departureTime),
       agreedDailyRate: quickWalkForm.agreedDailyRate,
-      remark: quickWalkForm.remark
+      remark: quickWalkForm.remark,
+      payments: [{ method: quickWalkPayMethod.value, amount: quickWalkPayAmount.value }]
     })
     ElMessage.success('入住成功')
     quickWalkVisible.value = false
@@ -1021,8 +1061,10 @@ async function submitQuickWalkIn() {
     await load()
     await loadFloors()
   } catch (e: unknown) {
-    const err = e as { response?: { data?: { message?: string } } }
-    ElMessage.error(err.response?.data?.message || '入住失败')
+    const err = e as { message?: string }
+    if (!err.message) {
+      ElMessage.error('入住失败')
+    }
   } finally {
     saving.value = false
   }
@@ -1256,6 +1298,17 @@ onMounted(async () => {
   margin-bottom: 4px;
   align-items: center;
 }
+.charge-total {
+  font-size: 16px;
+  font-weight: 600;
+  color: #e6a23c;
+}
+.pay-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .form-hint {
   font-size: 12px;
   color: #909399;
@@ -1267,5 +1320,6 @@ onMounted(async () => {
 .hint-inline {
   font-size: 12px;
   color: #909399;
+  margin-left: 8px;
 }
 </style>

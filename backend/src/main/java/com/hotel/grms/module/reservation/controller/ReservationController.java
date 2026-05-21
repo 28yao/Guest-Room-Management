@@ -138,7 +138,7 @@ public class ReservationController {
     }
 
     /**
-     * 退订（退款）：取消预订并记录可选退款流水。
+     * 退款：取消预订并记录可选退款流水。
      *
      * @param id      预订 ID
      * @param request 请求体

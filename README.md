@@ -22,7 +22,8 @@
 | MOD-ROOM | 已完成 | 房态图双维标签；房型/客房；维修；净/脏切换（V14）；强制改态 |
 | MOD-RES | 已完成 | 预订 CRUD、预排房、释放/取消、可售查询 |
 | MOD-STAY | 已完成（增强） | Walk-in、预订入住、在住列表（姓名查询）、换房、备注、退订退款；房态图快捷换房/退订/一键置态 |
-| MOD-BILL 及以后 | 待开发 | 见 [tasks.md](./specs/tasks.md) §6 起 |
+| MOD-BILL | 已完成（首批） | 入住时结账、改价；退房仅释放房间 |
+| MOD-HK 及以后 | 待开发 | 见 [tasks.md](./specs/tasks.md) §7 起 |
 
 **默认管理员**：`admin` / `admin123`（`sql/V2__seed_data.sql`）
 
@@ -151,13 +152,15 @@ npm run dev
 | 用户管理 | `/system/users` | `system:user:manage`；含 **修改密码**、**删除用户** |
 | 角色权限 | `/system/roles` | `system:role:manage`；含 **恢复默认** |
 | 敏感权限直授 | `/system/user-permissions` | `system:permission:grant`；含 **恢复默认** |
+| 办理入住 | `/check-in` | `stay:checkin`；**入住时结清房费** |
+| 在住管理 | `/in-house` | 登录；换房、**退款**、**退房**（仅释放客房） |
 
 ### 验证步骤（当前 MVP）
 
 1. 登录 `admin` / `admin123`，确认进入房态图。  
 2. 系统管理：用户 **修改密码**、**删除**；角色/直授 **恢复默认**（见 [手动验收清单](./docs/MANUAL_ACCEPTANCE.md)）。  
 3. 房型/客房 CRUD，房态图筛选、维修、置脏/置净、强制改态。  
-4. 预订管理、Walk-in/预订入住、在住换房与退订退款（见 [手动验收清单](./docs/MANUAL_ACCEPTANCE.md)）；退房结账待 MOD-BILL。
+4. **入住时结账** → 在住 **退房**（释放客房）；提前结束用「**退款**」（见 [手动验收清单](./docs/MANUAL_ACCEPTANCE.md)）。
 
 ## 贡献规范
 

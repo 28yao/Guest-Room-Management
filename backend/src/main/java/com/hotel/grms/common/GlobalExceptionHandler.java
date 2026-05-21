@@ -9,6 +9,7 @@ import org.springframework.jdbc.CannotGetJdbcConnectionException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -173,6 +174,23 @@ public class GlobalExceptionHandler {
             cursor = cursor.getCause();
         }
         return null;
+    }
+
+    /**
+     * 处理请求体验证失败。
+     *
+     * @param ex 校验异常
+     * @return 失败响应
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseStatus(HttpStatus.OK)
+    public R<Void> handleValidation(MethodArgumentNotValidException ex) {
+        String message = "参数校验失败";
+        if (ex.getBindingResult().getFieldError() != null
+                && ex.getBindingResult().getFieldError().getDefaultMessage() != null) {
+            message = ex.getBindingResult().getFieldError().getDefaultMessage();
+        }
+        return R.fail(40001, message);
     }
 
     /**

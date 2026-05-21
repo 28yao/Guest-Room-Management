@@ -14,6 +14,8 @@ INSERT INTO sys_permission (id, code, name) VALUES (10, 'stay:checkin', '办理�
 INSERT INTO sys_permission (id, code, name) VALUES (11, 'stay:change_room', '换房');
 INSERT INTO sys_permission (id, code, name) VALUES (12, 'shift:open', '开班');
 INSERT INTO sys_permission (id, code, name) VALUES (13, 'shift:close', '结班');
+INSERT INTO sys_permission (id, code, name) VALUES (14, 'billing:price:adjust', '改价');
+INSERT INTO sys_permission (id, code, name) VALUES (15, 'billing:checkout', '退房结账');
 
 INSERT INTO sys_user (id, username, password, status) VALUES
 (1, 'admin', '$2a$10$6am6wYerYdF3L6tzBP7LNeVP13IkCRu7OMClrkSfpOaO/KgQKw4/C', 1);
@@ -31,3 +33,4 @@ INSERT INTO sys_role_permission VALUES (2, 10);
 INSERT INTO sys_role_permission VALUES (2, 11);
 INSERT INTO sys_role_permission VALUES (2, 12);
 INSERT INTO sys_role_permission VALUES (2, 13);
+INSERT INTO sys_role_permission VALUES (2, 15);

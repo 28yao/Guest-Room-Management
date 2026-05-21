@@ -5,6 +5,9 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.hotel.grms.common.BusinessException;
 import com.hotel.grms.module.billing.FolioStatus;
 import com.hotel.grms.module.billing.PaymentMethod;
+import com.hotel.grms.module.billing.dto.CheckInPaymentItem;
+import com.hotel.grms.module.billing.dto.FolioDetailResponse;
+import com.hotel.grms.module.billing.dto.FolioLineResponse;
 import com.hotel.grms.module.billing.entity.Folio;
 import com.hotel.grms.module.billing.entity.FolioLine;
 import com.hotel.grms.module.billing.entity.Payment;
@@ -13,6 +16,7 @@ import com.hotel.grms.module.billing.mapper.FolioMapper;
 import com.hotel.grms.module.billing.mapper.PaymentMapper;
 import com.hotel.grms.module.room.entity.RoomType;
 import com.hotel.grms.module.room.service.RoomTypeService;
+import com.hotel.grms.module.stay.StayStatus;
 import com.hotel.grms.module.stay.entity.StayOrder;
 import com.hotel.grms.module.stay.mapper.StayOrderMapper;
 import com.hotel.grms.security.SecurityUtils;
@@ -75,6 +79,157 @@ public class BillingService {
         folioMapper.insert(folio);
         regenerateActiveLines(folio.getId(), stayOrder);
         return folio.getId();
+    }
+
+    /**
+     * 查询在住单账单详情（含有效明细行）。
+     *
+     * @param stayOrderId 在住单 ID
+     * @return 账单详情
+     */
+    public FolioDetailResponse getFolioDetailByStay(Long stayOrderId) {
+        Folio folio = findFolioByStay(stayOrderId);
+        if (folio == null) {
+            throw new BusinessException(40016, "账单不存在");
+        }
+        return toDetailResponse(folio);
+    }
+
+    /**
+     * 按账单 ID 查询详情。
+     *
+     * @param folioId 账单 ID
+     * @return 账单详情
+     */
+    public FolioDetailResponse getFolioDetail(Long folioId) {
+        Folio folio = folioMapper.selectById(folioId);
+        if (folio == null) {
+            throw new BusinessException(40016, "账单不存在");
+        }
+        return toDetailResponse(folio);
+    }
+
+    /**
+     * 改价：更新协议日价并整段重算（BR-05）。
+     *
+     * @param folioId          账单 ID
+     * @param agreedDailyRate  新协议日价
+     * @return 更新后账单
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public FolioDetailResponse adjustAgreedDailyRate(Long folioId, BigDecimal agreedDailyRate) {
+        Folio folio = folioMapper.selectById(folioId);
+        if (folio == null) {
+            throw new BusinessException(40016, "账单不存在");
+        }
+        StayOrder stayOrder = stayOrderMapper.selectById(folio.getStayOrderId());
+        if (stayOrder == null) {
+            throw new BusinessException(40015, "在住单不存在");
+        }
+        if (!StayStatus.IN_HOUSE.equals(stayOrder.getStatus())) {
+            throw new BusinessException(40025, "仅在住期间可改价");
+        }
+        if (FolioStatus.CLOSED.equals(folio.getStatus())) {
+            Folio reopen = new Folio();
+            reopen.setId(folioId);
+            reopen.setStatus(FolioStatus.OPEN);
+            folioMapper.updateById(reopen);
+        }
+        stayOrder.setAgreedDailyRate(agreedDailyRate);
+        stayOrderMapper.updateById(stayOrder);
+        regenerateActiveLines(folioId, stayOrder);
+        return getFolioDetail(folioId);
+    }
+
+    /**
+     * 分笔收款，累计已付金额。
+     *
+     * @param folioId        账单 ID
+     * @param amount         收款金额
+     * @param method         支付方式
+     * @param shiftSessionId 当班 ID
+     * @return 更新后账单
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public FolioDetailResponse addPayment(Long folioId, BigDecimal amount, String method, Long shiftSessionId) {
+        assertPaymentMethod(method);
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(40026, "收款金额须大于 0");
+        }
+        Folio folio = folioMapper.selectById(folioId);
+        if (folio == null) {
+            throw new BusinessException(40016, "账单不存在");
+        }
+        if (!FolioStatus.OPEN.equals(folio.getStatus())) {
+            throw new BusinessException(40027, "仅未结账单可收款");
+        }
+        insertPositivePayment(folioId, amount, method, shiftSessionId);
+        BigDecimal paid = folio.getPaidAmount() != null ? folio.getPaidAmount() : BigDecimal.ZERO;
+        Folio update = new Folio();
+        update.setId(folioId);
+        update.setPaidAmount(paid.add(amount));
+        folioMapper.updateById(update);
+        return getFolioDetail(folioId);
+    }
+
+    /**
+     * 入住时结清账单：分笔收款合计须等于应付，并关账（BR-07）。
+     *
+     * @param folioId        账单 ID
+     * @param payments       收款明细
+     * @param shiftSessionId 当班 ID
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void settleFolioAtCheckIn(Long folioId, List<CheckInPaymentItem> payments, Long shiftSessionId) {
+        Folio folio = folioMapper.selectById(folioId);
+        if (folio == null) {
+            throw new BusinessException(40016, "账单不存在");
+        }
+        if (!FolioStatus.OPEN.equals(folio.getStatus())) {
+            throw new BusinessException(40027, "仅未结账单可收款");
+        }
+        BigDecimal total = folio.getTotalAmount() != null ? folio.getTotalAmount() : BigDecimal.ZERO;
+        BigDecimal sum = BigDecimal.ZERO;
+        for (CheckInPaymentItem item : payments) {
+            assertPaymentMethod(item.getMethod());
+            if (item.getAmount() == null || item.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BusinessException(40026, "收款金额须大于 0");
+            }
+            insertPositivePayment(folioId, item.getAmount(), item.getMethod(), shiftSessionId);
+            sum = sum.add(item.getAmount());
+        }
+        if (sum.compareTo(total) != 0) {
+            throw new BusinessException(40004, "收款合计须等于应付金额，请核对后重试");
+        }
+        Folio update = new Folio();
+        update.setId(folioId);
+        update.setPaidAmount(sum);
+        folioMapper.updateById(update);
+        closeFolio(folioId);
+    }
+
+    /**
+     * 校验账单已结清（应付=已付）。
+     *
+     * @param folio 账单
+     */
+    public void assertSettled(Folio folio) {
+        BigDecimal total = folio.getTotalAmount() != null ? folio.getTotalAmount() : BigDecimal.ZERO;
+        BigDecimal paid = folio.getPaidAmount() != null ? folio.getPaidAmount() : BigDecimal.ZERO;
+        if (total.compareTo(paid) != 0) {
+            throw new BusinessException(40004, "账单未结清，请在入住时收齐房费");
+        }
+    }
+
+    /**
+     * 校验账单已关账（入住时已结账）。
+     *
+     * @param folio 账单
+     */
+    public void assertClosedForCheckout(Folio folio) {
+        if (!FolioStatus.CLOSED.equals(folio.getStatus())) {
+            throw new BusinessException(40028, "账单未在入住时结清，无法办理退房");
+        }
     }
 
     /**
@@ -297,8 +452,56 @@ public class BillingService {
     }
 
     private void assertRefundMethod(String method) {
+        assertPaymentMethod(method);
+    }
+
+    private void assertPaymentMethod(String method) {
         if (!StringUtils.hasText(method) || !ALLOWED_METHODS.contains(method)) {
-            throw new BusinessException(40022, "退款方式须为 CASH、WECHAT 或 ALIPAY");
+            throw new BusinessException(40022, "支付方式须为 CASH、WECHAT 或 ALIPAY");
         }
+    }
+
+    private void insertPositivePayment(Long folioId, BigDecimal amount, String method, Long shiftSessionId) {
+        Long operatorId = SecurityUtils.currentUserId();
+        if (operatorId == null) {
+            throw new BusinessException(40101, "未登录");
+        }
+        Payment payment = new Payment();
+        payment.setFolioId(folioId);
+        payment.setShiftSessionId(shiftSessionId);
+        payment.setMethod(method);
+        payment.setAmount(amount);
+        payment.setPaidAt(LocalDateTime.now());
+        payment.setOperatorId(operatorId);
+        paymentMapper.insert(payment);
+    }
+
+    private FolioDetailResponse toDetailResponse(Folio folio) {
+        List<FolioLine> activeLines = folioLineMapper.selectList(new LambdaQueryWrapper<FolioLine>()
+                .eq(FolioLine::getFolioId, folio.getId())
+                .eq(FolioLine::getActive, 1)
+                .orderByAsc(FolioLine::getId));
+        List<FolioLineResponse> lineResponses = new ArrayList<FolioLineResponse>();
+        for (FolioLine line : activeLines) {
+            FolioLineResponse row = new FolioLineResponse();
+            row.setId(line.getId());
+            row.setLineType(line.getLineType());
+            row.setDescription(line.getDescription());
+            row.setQuantity(line.getQuantity());
+            row.setUnitPrice(line.getUnitPrice());
+            row.setAmount(line.getAmount());
+            lineResponses.add(row);
+        }
+        BigDecimal total = folio.getTotalAmount() != null ? folio.getTotalAmount() : BigDecimal.ZERO;
+        BigDecimal paid = folio.getPaidAmount() != null ? folio.getPaidAmount() : BigDecimal.ZERO;
+        FolioDetailResponse response = new FolioDetailResponse();
+        response.setId(folio.getId());
+        response.setStayOrderId(folio.getStayOrderId());
+        response.setTotalAmount(total);
+        response.setPaidAmount(paid);
+        response.setBalance(total.subtract(paid));
+        response.setStatus(folio.getStatus());
+        response.setLines(lineResponses);
+        return response;
     }
 }

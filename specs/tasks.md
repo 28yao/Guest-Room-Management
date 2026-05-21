@@ -347,7 +347,7 @@
 | T-STAY-FE-03 | 换房对话框+目标房选择 | [依赖: T-STAY-CTL-04] | 3h | 成功后刷新账单 | 已完成 |
 | T-STAY-FE-04 | 在住备注编辑 | [依赖: T-STAY-CTL-06] | 1h | 保存备注 | 已完成 |
 | T-STAY-FE-05 | 在住列表：客人姓名查询 | [依赖: T-STAY-CTL-03] | 1h | 模糊过滤 | 已完成 |
-| T-STAY-FE-06 | 在住列表：退订（退款）对话框 | [依赖: T-STAY-CTL-08] | 2h | 计费截止日+退款 | 已完成 |
+| T-STAY-FE-06 | 在住列表：退款对话框 | [依赖: T-STAY-CTL-08] | 2h | 计费截止日+退款 | 已完成 |
 | T-ROOM-FE-10 | 房态图：订单行退订退款/换房 | [依赖: T-STAY-CTL-08, T-RES-CTL-06a] | 3h | 预订/在住分支 | 已完成 |
 | T-ROOM-FE-11 | 房态图：空净/脏房单按钮切换 | [依赖: T-ROOM-CTL-06/06a] | 1h | 脏↔净一键 | 已完成 |
 
@@ -427,41 +427,41 @@
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-BILL-FE-01 | 账单展示组件（明细行） | [依赖: T-BILL-CTL-01] | 2h | 显示晚数与金额 | 待开始 |
-| T-BILL-FE-02 | 改价对话框（无权限隐藏） | [依赖: T-BILL-CTL-03] | 2h | TC-05/06 | 待开始 |
-| T-BILL-FE-03 | 退房页：分笔支付+合计校验 | [依赖: T-BILL-CTL-04, T-BILL-CTL-05] | 4h | 合计=应付才可提交 | 待开始 |
+| T-BILL-FE-01 | 账单展示组件（明细行） | [依赖: T-BILL-CTL-01] | 2h | 显示晚数与金额 | 已完成 |
+| T-BILL-FE-02 | 改价对话框（无权限隐藏） | [依赖: T-BILL-CTL-03] | 2h | TC-05/06 | 已完成 |
+| T-BILL-FE-03 | 入住页结账+在住退房按钮 | [依赖: T-BILL-CTL-04, T-BILL-CTL-05] | 4h | 入住收齐；退房仅释放 | 已完成 |
 
 ### Controller 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-BILL-CTL-01 | `GET /folios/by-stay/{stayId}` | [依赖: T-BILL-SVC-01] | 1h | 返回行项目 | 待开始 |
-| T-BILL-CTL-02 | `POST /folios/{id}/recalculate` | [依赖: T-BILL-SVC-02] | 1h | 重算 | 待开始 |
-| T-BILL-CTL-03 | `POST /folios/{id}/adjust-price` | [依赖: T-BILL-SVC-03] | 1h | `billing:price:adjust` | 待开始 |
-| T-BILL-CTL-04 | `POST /folios/{id}/payments` | [依赖: T-BILL-SVC-04] | 2h | 关联 shift_id | 待开始 |
-| T-BILL-CTL-05 | `POST /stays/{id}/checkout` | [依赖: T-BILL-SVC-05] | 2h | BR-07 | 待开始 |
+| T-BILL-CTL-01 | `GET /folios/by-stay/{stayId}` | [依赖: T-BILL-SVC-01] | 1h | 返回行项目 | 已完成 |
+| T-BILL-CTL-02 | `POST /folios/{id}/recalculate` | [依赖: T-BILL-SVC-02] | 1h | 重算 | 已完成 |
+| T-BILL-CTL-03 | `POST /folios/{id}/adjust-price` | [依赖: T-BILL-SVC-03] | 1h | `billing:price:adjust` | 已完成 |
+| T-BILL-CTL-04 | `POST /folios/{id}/payments` | [依赖: T-BILL-SVC-04] | 2h | 关联 shift_id | 已完成 |
+| T-BILL-CTL-05 | `POST /stays/{id}/checkout`（仅释放房） | [依赖: T-BILL-SVC-05] | 2h | 入住已结账 | 已完成 |
 
 ### Service 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-BILL-SVC-01 | `BillingService.initFolioLines`（按晚） | [依赖: T-BILL-MAP-01] | 4h | OQ-01 正确 | 待开始 |
-| T-BILL-SVC-02 | `recalculateFullStay` 换房整段重算 | [依赖: T-BILL-SVC-01] | 3h | BR-06 | 待开始 |
-| T-BILL-SVC-03 | `adjustPrice` + 审计 | [依赖: T-AUDIT-SVC-01] | 2h | BR-05 | 待开始 |
-| T-BILL-SVC-04 | `PaymentService.addPayment` | [依赖: T-SHIFT-SVC-01] | 2h | 累计 paid | 待开始 |
-| T-BILL-SVC-05 | `CheckoutService.checkout` | [依赖: T-BILL-SVC-04, T-ROOM-SVC-04, T-HK-SVC-01] | 4h | 结清+脏房+hk_task | 待开始 |
+| T-BILL-SVC-01 | `BillingService.initFolioLines`+`settleFolioAtCheckIn` | [依赖: T-BILL-MAP-01] | 4h | 入住须结清 | 已完成 |
+| T-BILL-SVC-02 | `recalculateFullStay` 换房整段重算 | [依赖: T-BILL-SVC-01] | 3h | BR-06 | 已完成 |
+| T-BILL-SVC-03 | `adjustPrice` + 审计 | [依赖: T-AUDIT-SVC-01] | 2h | BR-05 | 已完成（审计待 MOD-AUDIT） |
+| T-BILL-SVC-04 | `PaymentService.addPayment` | [依赖: T-SHIFT-SVC-01] | 2h | 累计 paid | 已完成 |
+| T-BILL-SVC-05 | `CheckoutService.checkout` | [依赖: T-BILL-SVC-04, T-ROOM-SVC-04, T-HK-SVC-01] | 4h | 结清+脏房+hk_task | 已完成 |
 
 ### Mapper 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-BILL-MAP-01 | `FolioMapper` / `FolioLineMapper` / `PaymentMapper` | [依赖: T-INFRA-DB-03] | 2h | 参数化 | 待开始 |
+| T-BILL-MAP-01 | `FolioMapper` / `FolioLineMapper` / `PaymentMapper` | [依赖: T-INFRA-DB-03] | 2h | 参数化 | 已完成 |
 
 ### Repository/数据持久化任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-BILL-REPO-01 | 实体 `Folio` / `FolioLine` / `Payment` | [依赖: T-INFRA-DB-01] | 1h | 无押金字段 | 待开始 |
+| T-BILL-REPO-01 | 实体 `Folio` / `FolioLine` / `Payment` | [依赖: T-INFRA-DB-01] | 1h | 无押金字段 | 已完成 |
 
 ### 页面测试方法
 
@@ -475,16 +475,16 @@
 |------|------|------|------|----------|------|
 | T-BILL-IT-01 | 无改价权限 403 | [依赖: T-BILL-CTL-03] | 0.5h | TC-05 | 待开始 |
 | T-BILL-IT-02 | 授权改价成功且有审计 | [依赖: T-BILL-CTL-03] | 1h | TC-06 | 待开始 |
-| T-BILL-IT-03 | 分笔支付后退房成功 | [依赖: T-BILL-CTL-05] | 1h | TC-07 | 待开始 |
+| T-BILL-IT-03 | 分笔支付后退房成功 | [依赖: T-BILL-CTL-05] | 1h | TC-07 | 已完成 |
 
 ### 异常情况测试
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-BILL-EX-01 | 未结清退房 40004 | [依赖: T-BILL-SVC-05] | 0.5h | BR-07 | 待开始 |
+| T-BILL-EX-01 | 入住收款不足 40004 | [依赖: T-BILL-SVC-01] | 0.5h | BR-07 | 已完成 |
 | T-BILL-EX-02 | 未开班收款 40003 | [依赖: T-BILL-SVC-04] | 0.5h | OQ-03 | 待开始 |
 
-**当前状态**：`待开始`
+**当前状态**：`已完成`（首批；改价审计、TC-05/06 用例待 MOD-AUDIT 与补充 IT）
 
 ---
 

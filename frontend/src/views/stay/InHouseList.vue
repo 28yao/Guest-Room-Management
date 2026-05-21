@@ -31,10 +31,11 @@
           <span v-if="(row.folioPaidAmount ?? 0) > 0" class="paid-hint"> / 已收 ¥{{ row.folioPaidAmount }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="260" fixed="right">
+      <el-table-column label="操作" width="320" fixed="right">
         <template #default="{ row }">
+          <el-button v-if="canCheckout" link type="primary" @click="confirmCheckout(row)">退房</el-button>
           <el-button v-if="canChangeRoom" link type="primary" @click="openChangeRoom(row)">换房</el-button>
-          <el-button v-if="canVoidCheckout" link type="danger" @click="openVoidCheckout(row)">退订（退款）</el-button>
+          <el-button v-if="canVoidCheckout" link type="danger" @click="openVoidCheckout(row)">退款</el-button>
           <el-button link type="primary" @click="openRemark(row)">备注</el-button>
         </template>
       </el-table-column>
@@ -67,7 +68,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="voidVisible" title="退订（退款）— 提前退房" width="480px">
+    <el-dialog v-model="voidVisible" title="退款 — 提前结束住宿" width="480px">
       <el-alert type="info" :closable="false" show-icon title="将按计费截止日重算房费；多收部分可退款并记入当班。" />
       <el-form label-width="110px" style="margin-top: 12px">
         <el-form-item label="在住单号">
@@ -112,7 +113,7 @@
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
-import { listInHouse, changeRoom, updateStayRemark, voidCheckout, type StayVO } from '@/api/stay'
+import { listInHouse, changeRoom, updateStayRemark, voidCheckout, checkoutStay, type StayVO } from '@/api/stay'
 import { listAvailabilityApi, type AvailableRoomVO } from '@/api/reservation'
 import { getCurrentShift } from '@/api/shift'
 import { combineDateTime, DEFAULT_ARRIVAL_TIME, DEFAULT_DEPARTURE_TIME } from '@/utils/datetime'
@@ -120,7 +121,31 @@ import { computeRefundPreview } from '@/utils/billing'
 
 const auth = useAuthStore()
 const canChangeRoom = auth.hasPermission('stay:change_room')
+const canCheckout = auth.hasPermission('billing:checkout')
 const canVoidCheckout = auth.hasPermission('billing:checkout')
+
+async function confirmCheckout(row: StayVO) {
+  try {
+    await ElMessageBox.confirm(
+      `确认为 ${row.guestName}（${row.roomNo}）办理退房？客房将置为脏房。房费已在入住时结清。`,
+      '退房',
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  saving.value = true
+  try {
+    await checkoutStay(row.id)
+    ElMessage.success('已退房')
+    await load()
+  } catch (e: unknown) {
+    const err = e as { message?: string; response?: { data?: { message?: string } } }
+    ElMessage.error(err.message || err.response?.data?.message || '退房失败')
+  } finally {
+    saving.value = false
+  }
+}
 const list = ref<StayVO[]>([])
 const guestNameQuery = ref('')
 const changeVisible = ref(false)
@@ -249,7 +274,7 @@ async function submitVoidCheckout() {
   try {
     const shiftRes = await getCurrentShift()
     if (!shiftRes.data.data) {
-      ElMessage.warning('请先开班后再办理退订退款')
+      ElMessage.warning('请先开班后再办理退款')
       return
     }
   } catch {
@@ -259,7 +284,7 @@ async function submitVoidCheckout() {
   try {
     await ElMessageBox.confirm(
       '确认提前退房？客房将置为脏房，账单将按截止日结清。',
-      '退订（退款）',
+      '退款',
       { type: 'warning' }
     )
   } catch {
@@ -274,7 +299,7 @@ async function submitVoidCheckout() {
       refundAmount: voidForm.value.refundAmount ?? 0
     }
     await voidCheckout(voidTarget.value.id, payload)
-    ElMessage.success('已办理退订（退款）')
+    ElMessage.success('已办理退款')
     voidVisible.value = false
     await load()
   } catch (e: unknown) {

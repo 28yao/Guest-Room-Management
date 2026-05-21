@@ -59,8 +59,24 @@
           <el-form-item label="备注">
             <el-input v-model="walkIn.remark" type="textarea" />
           </el-form-item>
+          <el-divider content-position="left">入住结账</el-divider>
+          <el-form-item label="应付房费">
+            <span class="charge-total">¥{{ walkInChargeable }}</span>
+            <span class="hint">（{{ walkInNights }} 晚 × 协议价）</span>
+          </el-form-item>
+          <el-form-item label="收款" required>
+            <div class="pay-row">
+              <el-select v-model="walkInPayMethod" style="width: 120px">
+                <el-option label="现金" value="CASH" />
+                <el-option label="微信" value="WECHAT" />
+                <el-option label="支付宝" value="ALIPAY" />
+              </el-select>
+              <el-input-number v-model="walkInPayAmount" :min="0.01" :precision="2" style="width: 160px" />
+              <el-button link type="primary" @click="walkInPayAmount = walkInChargeable">收齐</el-button>
+            </div>
+          </el-form-item>
           <el-form-item>
-            <el-button type="primary" :disabled="!shift" @click="submitWalkIn">确认入住</el-button>
+            <el-button type="primary" :disabled="!shift" @click="submitWalkIn">确认入住并结账</el-button>
           </el-form-item>
         </el-form>
       </el-tab-pane>
@@ -115,8 +131,28 @@
           <el-form-item label="备注">
             <el-input v-model="resCheckIn.remark" type="textarea" />
           </el-form-item>
+          <template v-if="selectedRes">
+            <el-divider content-position="left">入住结账</el-divider>
+            <el-form-item label="应付房费">
+              <span class="charge-total">¥{{ resChargeable }}</span>
+              <span class="hint">（{{ resNights }} 晚 × 协议价）</span>
+            </el-form-item>
+            <el-form-item label="收款" required>
+              <div class="pay-row">
+                <el-select v-model="resPayMethod" style="width: 120px">
+                  <el-option label="现金" value="CASH" />
+                  <el-option label="微信" value="WECHAT" />
+                  <el-option label="支付宝" value="ALIPAY" />
+                </el-select>
+                <el-input-number v-model="resPayAmount" :min="0.01" :precision="2" style="width: 160px" />
+                <el-button link type="primary" @click="resPayAmount = resChargeable">收齐</el-button>
+              </div>
+            </el-form-item>
+          </template>
           <el-form-item>
-            <el-button type="primary" :disabled="!shift" @click="submitResCheckIn">确认入住</el-button>
+            <el-button type="primary" :disabled="!shift || !resCheckIn.reservationId" @click="submitResCheckIn">
+              确认入住并结账
+            </el-button>
           </el-form-item>
         </el-form>
       </el-tab-pane>
@@ -125,7 +161,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { getCurrentShift, openShift, type ShiftSessionVO } from '@/api/shift'
@@ -137,6 +173,7 @@ import {
 } from '@/api/reservation'
 import { walkInCheckIn, checkInFromReservation, type WalkInForm, type ReservationCheckInForm } from '@/api/stay'
 import { combineDateTime, DEFAULT_ARRIVAL_TIME, DEFAULT_DEPARTURE_TIME, toIsoDateTime } from '@/utils/datetime'
+import { computeCheckInChargeable, computeStayNights } from '@/utils/billing'
 
 const auth = useAuthStore()
 const activeTab = ref('walkin')
@@ -151,8 +188,11 @@ const walkIn = reactive<WalkInForm>({
   arrivalDate: '',
   departureDate: '',
   agreedDailyRate: undefined,
-  remark: ''
+  remark: '',
+  payments: [{ method: 'CASH', amount: 0 }]
 })
+const walkInPayMethod = ref('CASH')
+const walkInPayAmount = ref(0)
 const walkInRooms = ref<AvailableRoomVO[]>([])
 const walkInArrivalTime = ref(DEFAULT_ARRIVAL_TIME)
 const walkInDepartureTime = ref(DEFAULT_DEPARTURE_TIME)
@@ -165,7 +205,37 @@ const resCheckIn = reactive<ReservationCheckInForm>({
   reservationId: undefined,
   roomId: undefined,
   agreedDailyRate: undefined,
-  remark: ''
+  remark: '',
+  payments: [{ method: 'CASH', amount: 0 }]
+})
+const resPayMethod = ref('CASH')
+const resPayAmount = ref(0)
+
+const walkInNights = computed(() =>
+  walkIn.arrivalDate && walkIn.departureDate
+    ? computeStayNights(walkIn.arrivalDate, walkIn.departureDate)
+    : 0
+)
+const walkInChargeable = computed(() =>
+  computeCheckInChargeable(Number(walkIn.agreedDailyRate ?? 0), walkIn.arrivalDate, walkIn.departureDate)
+)
+
+const resNights = computed(() =>
+  selectedRes.value
+    ? computeStayNights(selectedRes.value.arrivalDate, selectedRes.value.departureDate)
+    : 0
+)
+const resChargeable = computed(() => {
+  if (!selectedRes.value) return 0
+  const rate = Number(resCheckIn.agreedDailyRate ?? selectedRes.value.rackRate ?? 0)
+  return computeCheckInChargeable(rate, selectedRes.value.arrivalDate, selectedRes.value.departureDate)
+})
+
+watch(walkInChargeable, (v) => {
+  walkInPayAmount.value = v
+})
+watch(resChargeable, (v) => {
+  resPayAmount.value = v
 })
 
 onMounted(async () => {
@@ -249,9 +319,14 @@ async function submitWalkIn() {
     ElMessage.warning('请选择客房')
     return
   }
+  if (Math.abs(walkInPayAmount.value - walkInChargeable.value) > 0.009) {
+    ElMessage.warning('收款金额须等于应付房费')
+    return
+  }
   const times = walkInTimeRange()
   walkIn.arrivalAt = times.arrivalAt
   walkIn.departureAt = times.departureAt
+  walkIn.payments = [{ method: walkInPayMethod.value, amount: walkInPayAmount.value }]
   try {
     await walkInCheckIn(walkIn)
     ElMessage.success('入住成功')
@@ -357,6 +432,11 @@ async function submitResCheckIn() {
     ElMessage.warning('请选择入住客房')
     return
   }
+  if (Math.abs(resPayAmount.value - resChargeable.value) > 0.009) {
+    ElMessage.warning('收款金额须等于应付房费')
+    return
+  }
+  resCheckIn.payments = [{ method: resPayMethod.value, amount: resPayAmount.value }]
   try {
     await checkInFromReservation(resCheckIn)
     ElMessage.success('预订入住成功')
@@ -388,5 +468,17 @@ async function submitResCheckIn() {
   font-size: 12px;
   color: #909399;
   margin-top: 4px;
+  margin-left: 8px;
+}
+.charge-total {
+  font-size: 18px;
+  font-weight: 600;
+  color: #e6a23c;
+}
+.pay-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 </style>

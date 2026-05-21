@@ -1,7 +1,12 @@
 package com.hotel.grms.module.stay.dto;
 
+import com.hotel.grms.module.billing.dto.CheckInPaymentItem;
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 预订入住请求，可选调整房号。
@@ -16,6 +21,10 @@ public class CheckInFromReservationRequest {
     private Long roomId;
     private BigDecimal agreedDailyRate;
     private String remark;
+
+    @NotEmpty(message = "入住须登记收款")
+    @Valid
+    private List<CheckInPaymentItem> payments;
 
     public Long getReservationId() {
         return reservationId;
@@ -47,5 +56,13 @@ public class CheckInFromReservationRequest {
 
     public void setRemark(String remark) {
         this.remark = remark;
+    }
+
+    public List<CheckInPaymentItem> getPayments() {
+        return payments;
+    }
+
+    public void setPayments(List<CheckInPaymentItem> payments) {
+        this.payments = payments;
     }
 }

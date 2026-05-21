@@ -24,6 +24,11 @@ export interface StayVO {
   folioPaidAmount?: number
 }
 
+export interface CheckInPaymentItem {
+  method: string
+  amount: number
+}
+
 export interface WalkInForm {
   roomId: number | undefined
   guestName: string
@@ -36,6 +41,7 @@ export interface WalkInForm {
   departureAt?: string
   agreedDailyRate?: number
   remark?: string
+  payments: CheckInPaymentItem[]
 }
 
 export interface ReservationCheckInForm {
@@ -43,6 +49,7 @@ export interface ReservationCheckInForm {
   roomId?: number
   agreedDailyRate?: number
   remark?: string
+  payments: CheckInPaymentItem[]
 }
 
 export function walkInCheckIn(data: WalkInForm) {
@@ -80,4 +87,8 @@ export function changeRoom(stayId: number, data: { targetRoomId: number; targetR
 
 export function updateStayRemark(stayId: number, remark: string) {
   return request.put<{ data: StayVO }>(`/stays/${stayId}/remark`, { remark })
+}
+
+export function checkoutStay(stayId: number) {
+  return request.post<{ data: StayVO }>(`/stays/${stayId}/checkout`)
 }

@@ -1,13 +1,12 @@
-package com.hotel.grms.module.stay.controller;
+package com.hotel.grms.module.billing.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hotel.grms.module.auth.dto.LoginRequest;
-import com.hotel.grms.module.reservation.dto.AssignRoomRequest;
-import com.hotel.grms.module.reservation.dto.ReservationCreateRequest;
+import com.hotel.grms.module.billing.dto.AddPaymentRequest;
+import com.hotel.grms.module.billing.dto.CheckInPaymentItem;
 import com.hotel.grms.module.room.dto.RoomRequest;
 import com.hotel.grms.module.room.dto.RoomTypeRequest;
-import com.hotel.grms.module.billing.dto.CheckInPaymentItem;
-import com.hotel.grms.module.stay.dto.CheckInFromReservationRequest;
 import com.hotel.grms.module.stay.dto.WalkInCheckInRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
@@ -15,10 +14,10 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -34,7 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * 入住接口集成测试。
+ * 账单与退房接口集成测试。
  *
  * @author liuxinsi
  * @date 2026-05-21
@@ -43,7 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-class StayControllerTest {
+class FolioControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -55,9 +54,20 @@ class StayControllerTest {
     private JdbcTemplate jdbcTemplate;
 
     private String adminToken;
+    private Long stayId;
+    private Long folioId;
+    private int roomSeq;
 
     @BeforeEach
     void login() throws Exception {
+        jdbcTemplate.update("DELETE FROM payment");
+        jdbcTemplate.update("DELETE FROM folio_line");
+        jdbcTemplate.update("DELETE FROM folio");
+        jdbcTemplate.update("DELETE FROM stay_guest");
+        jdbcTemplate.update("DELETE FROM stay_order");
+        jdbcTemplate.update("DELETE FROM hk_task");
+        jdbcTemplate.update("DELETE FROM room");
+        jdbcTemplate.update("DELETE FROM room_type");
         jdbcTemplate.update("DELETE FROM shift_session");
         LoginRequest request = new LoginRequest();
         request.setUsername("admin");
@@ -69,74 +79,88 @@ class StayControllerTest {
                 .andReturn();
         adminToken = objectMapper.readTree(result.getResponse().getContentAsString())
                 .path("data").path("token").asText();
+        roomSeq++;
     }
 
     @Test
     @Order(1)
-    void walkInRequiresOpenShift() throws Exception {
+    void checkInRequiresFullPayment() throws Exception {
+        openShift();
         Long typeId = createRoomType();
-        Long roomId = createRoom(typeId, "ST901");
+        Long roomId = createRoom(typeId, "BL" + roomSeq + "01");
         WalkInCheckInRequest checkIn = buildWalkIn(roomId);
+        checkIn.setPayments(paymentList(new BigDecimal("100")));
         mockMvc.perform(post("/api/v1/stays/walk-in")
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(checkIn)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(40003));
+                .andExpect(jsonPath("$.code").value(40004));
     }
 
     @Test
     @Order(2)
-    void walkInSuccessAfterOpenShift() throws Exception {
+    void checkoutReleaseRoomAfterCheckInSettled() throws Exception {
         openShift();
         Long typeId = createRoomType();
-        Long roomId = createRoom(typeId, "ST902");
+        Long roomId = createRoom(typeId, "BL" + roomSeq + "02");
         WalkInCheckInRequest checkIn = buildWalkIn(roomId);
-        mockMvc.perform(post("/api/v1/stays/walk-in")
+        checkIn.setPayments(paymentList(new BigDecimal("300")));
+        MvcResult stayResult = mockMvc.perform(post("/api/v1/stays/walk-in")
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(checkIn)))
-                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
-                .andExpect(jsonPath("$.data.status").value("IN_HOUSE"));
-        mockMvc.perform(get("/api/v1/rooms").header("Authorization", "Bearer " + adminToken))
-                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("OCCUPIED"));
-        mockMvc.perform(get("/api/v1/stays/in-house").param("guestName", "WalkIn-" + roomId)
+                .andReturn();
+        JsonNode data = objectMapper.readTree(stayResult.getResponse().getContentAsString()).path("data");
+        stayId = data.path("id").asLong();
+        mockMvc.perform(post("/api/v1/stays/" + stayId + "/checkout")
                         .header("Authorization", "Bearer " + adminToken))
-                .andExpect(jsonPath("$.data.length()").value(1));
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.status").value("CHECKED_OUT"));
+        Long hkCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM hk_task WHERE room_id = ?",
+                Long.class, roomId);
+        org.junit.jupiter.api.Assertions.assertTrue(hkCount != null && hkCount > 0);
     }
 
     @Test
     @Order(3)
-    void checkInFromReservationSuccess() throws Exception {
+    void adjustPriceSuccessForAdmin() throws Exception {
         openShift();
-        Long typeId = createRoomType();
-        Long roomId = createRoom(typeId, "ST904");
-        Long reservationId = createReservation(typeId);
-        AssignRoomRequest assign = new AssignRoomRequest();
-        assign.setRoomId(roomId);
-        mockMvc.perform(post("/api/v1/reservations/" + reservationId + "/assign-room")
+        prepareStayWithPayment();
+        String body = "{\"agreedDailyRate\":280}";
+        mockMvc.perform(post("/api/v1/folios/" + folioId + "/adjust-price")
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(assign)))
+                        .content(body))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0));
-        CheckInFromReservationRequest checkIn = new CheckInFromReservationRequest();
-        checkIn.setReservationId(reservationId);
-        checkIn.setRoomId(roomId);
-        List<CheckInPaymentItem> payments = new ArrayList<CheckInPaymentItem>();
-        CheckInPaymentItem pay = new CheckInPaymentItem();
-        pay.setMethod("CASH");
-        pay.setAmount(new BigDecimal("388"));
-        payments.add(pay);
-        checkIn.setPayments(payments);
-        mockMvc.perform(post("/api/v1/stays/check-in-from-reservation")
+    }
+
+    private void prepareStayWithPayment() throws Exception {
+        Long typeId = createRoomType();
+        Long roomId = createRoom(typeId, "BL" + roomSeq + "03");
+        WalkInCheckInRequest checkIn = buildWalkIn(roomId);
+        checkIn.setPayments(paymentList(new BigDecimal("300")));
+        MvcResult stayResult = mockMvc.perform(post("/api/v1/stays/walk-in")
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(checkIn)))
                 .andExpect(jsonPath("$.code").value(0))
-                .andExpect(jsonPath("$.data.reservationId").value(reservationId.intValue()));
-        mockMvc.perform(get("/api/v1/rooms").header("Authorization", "Bearer " + adminToken))
-                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("OCCUPIED"));
+                .andReturn();
+        JsonNode data = objectMapper.readTree(stayResult.getResponse().getContentAsString()).path("data");
+        stayId = data.path("id").asLong();
+        folioId = data.path("folioId").asLong();
+    }
+
+    private List<CheckInPaymentItem> paymentList(BigDecimal amount) {
+        List<CheckInPaymentItem> list = new ArrayList<CheckInPaymentItem>();
+        CheckInPaymentItem item = new CheckInPaymentItem();
+        item.setMethod("CASH");
+        item.setAmount(amount);
+        list.add(item);
+        return list;
     }
 
     private void openShift() throws Exception {
@@ -147,17 +171,12 @@ class StayControllerTest {
     private WalkInCheckInRequest buildWalkIn(Long roomId) {
         WalkInCheckInRequest request = new WalkInCheckInRequest();
         request.setRoomId(roomId);
-        request.setGuestName("WalkIn-" + roomId);
-        request.setGuestPhone("13800000001");
+        request.setGuestName("结账测试");
+        request.setGuestPhone("13800009901");
         request.setArrivalDate(LocalDate.now());
         request.setDepartureDate(LocalDate.now().plusDays(1));
         request.setAgreedDailyRate(new BigDecimal("300"));
-        List<CheckInPaymentItem> payments = new ArrayList<CheckInPaymentItem>();
-        CheckInPaymentItem pay = new CheckInPaymentItem();
-        pay.setMethod("CASH");
-        pay.setAmount(new BigDecimal("300"));
-        payments.add(pay);
-        request.setPayments(payments);
+        request.setPayments(paymentList(new BigDecimal("300")));
         return request;
     }
 
@@ -181,27 +200,12 @@ class StayControllerTest {
         RoomRequest request = new RoomRequest();
         request.setRoomNo(roomNo);
         request.setRoomTypeId(typeId);
-        request.setFloorNo(8);
+        request.setFloorNo(9);
         MvcResult result = mockMvc.perform(post("/api/v1/rooms")
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(jsonPath("$.code").value(0))
-                .andReturn();
-        return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asLong();
-    }
-
-    private Long createReservation(Long typeId) throws Exception {
-        ReservationCreateRequest request = new ReservationCreateRequest();
-        request.setGuestName("李四");
-        request.setGuestPhone("13900000002");
-        request.setRoomTypeId(typeId);
-        request.setArrivalDate(LocalDate.now());
-        request.setDepartureDate(LocalDate.now().plusDays(1));
-        MvcResult result = mockMvc.perform(post("/api/v1/reservations")
-                        .header("Authorization", "Bearer " + adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asLong();
     }

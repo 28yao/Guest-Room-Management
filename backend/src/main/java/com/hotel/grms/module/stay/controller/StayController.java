@@ -7,6 +7,7 @@ import com.hotel.grms.module.stay.dto.StayRemarkRequest;
 import com.hotel.grms.module.stay.dto.StayResponse;
 import com.hotel.grms.module.stay.dto.VoidCheckoutRequest;
 import com.hotel.grms.module.stay.dto.WalkInCheckInRequest;
+import com.hotel.grms.module.billing.service.CheckoutService;
 import com.hotel.grms.module.stay.service.StayService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -32,9 +33,11 @@ import java.util.List;
 public class StayController {
 
     private final StayService stayService;
+    private final CheckoutService checkoutService;
 
-    public StayController(StayService stayService) {
+    public StayController(StayService stayService, CheckoutService checkoutService) {
         this.stayService = stayService;
+        this.checkoutService = checkoutService;
     }
 
     /**
@@ -124,5 +127,17 @@ public class StayController {
     @PreAuthorize("hasAuthority('billing:checkout')")
     public R<StayResponse> voidCheckout(@PathVariable Long id, @Validated @RequestBody VoidCheckoutRequest request) {
         return R.ok(stayService.voidCheckout(id, request));
+    }
+
+    /**
+     * 退房（仅释放客房，入住时已结账）。
+     *
+     * @param id 在住单 ID
+     * @return 已退房详情
+     */
+    @PostMapping("/{id}/checkout")
+    @PreAuthorize("hasAuthority('billing:checkout')")
+    public R<StayResponse> checkout(@PathVariable Long id) {
+        return R.ok(checkoutService.checkout(id));
     }
 }

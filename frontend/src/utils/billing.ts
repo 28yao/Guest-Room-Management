@@ -1,6 +1,25 @@
 /**
- * 与后端 BillingService 一致的房费晚数、退款预览计算。
+ * 与后端 BillingService 一致的房费晚数、退款预览、入住应付计算。
  */
+
+/**
+ * 整段入住收费晚数（至少 1 晚）。
+ */
+export function computeStayNights(arrivalDate: string, departureDate: string): number {
+  const arrival = parseYmd(arrivalDate)
+  const departure = parseYmd(departureDate)
+  const diff = Math.round((departure.getTime() - arrival.getTime()) / 86400000)
+  return diff < 1 ? 1 : diff
+}
+
+/**
+ * 入住时应付房费（协议日价 × 晚数）。
+ */
+export function computeCheckInChargeable(dailyRate: number, arrivalDate: string, departureDate: string): number {
+  const nights = computeStayNights(arrivalDate, departureDate)
+  const rate = dailyRate > 0 ? dailyRate : 0
+  return Math.round(rate * nights * 100) / 100
+}
 
 function parseYmd(dateStr: string): Date {
   return new Date(dateStr + 'T12:00:00')
