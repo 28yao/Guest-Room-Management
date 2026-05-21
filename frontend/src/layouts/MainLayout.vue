@@ -20,6 +20,7 @@
           在住管理
         </el-menu-item>
         <el-menu-item v-if="auth.hasPermission('hk:view')" index="/housekeeping">保洁任务</el-menu-item>
+        <el-menu-item v-if="auth.hasPermission('stat:view')" index="/stats">经营统计</el-menu-item>
         <el-menu-item v-if="auth.hasPermission('room:manage')" index="/rooms">客房管理</el-menu-item>
         <el-menu-item v-if="auth.hasPermission('room:type:manage')" index="/room-types">房型管理</el-menu-item>
         <el-menu-item index="/home">工作台</el-menu-item>

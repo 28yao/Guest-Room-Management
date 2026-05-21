@@ -17,7 +17,7 @@
 
 | 模块 | 状态 | 说明 |
 |------|------|------|
-| MOD-INFRA | 已完成 | 工程骨架、SQL V1～V16、健康检查 |
+| MOD-INFRA | 已完成 | 工程骨架、SQL V1～V17、健康检查 |
 | MOD-AUTH | 已完成 | 登录/JWT/RBAC；用户改密/删除、角色/直授 **恢复默认** |
 | MOD-ROOM | 已完成 | 房态图双维标签；房型/客房；维修；净/脏切换（V14）；强制改态 |
 | MOD-RES | 已完成 | 预订 CRUD、预排房、释放/取消、退订退款（V11）、可售查询 |
@@ -25,7 +25,8 @@
 | MOD-BILL | 已完成（首批） | 入住时结清房费；改价/支付；退房仅释放客房 |
 | MOD-HK | 已完成（首批） | 保洁任务列表/完成；`hk01` 不可看房态图、在住（V16） |
 | MOD-SHIFT | 已完成（首批） | 开班/结班预览/关闭；待办阻断与强制结班 |
-| MOD-STAT 及以后 | 待开发 | 见 [tasks.md](./specs/tasks.md) §9 起 |
+| MOD-STAT | 已完成（首批） | 出租率快照、区间营收；`/stats`（`stat:view`） |
+| MOD-AUDIT 及以后 | 待开发 | 见 [tasks.md](./specs/tasks.md) §10 起 |
 
 **默认账号**（`sql/V2__seed_data.sql`）：`admin` / `admin123`（管理员）；`hk01` / `admin123`（保洁，仅保洁任务）
 
@@ -58,7 +59,8 @@ Guest Room Management/
 │   ├── V13__restore_room_clean_dirty_perms.sql  # 恢复净/脏切换权限
 │   ├── V14__room_clean_status.sql    # 保洁态 clean_status（房态图必跑，执行后重启后端）
 │   ├── V15__cleanup_stay_data.sql    # 可选：开发库清理在住/账单/保洁任务（勿用于生产）
-│   └── V16__room_board_in_house_perms.sql  # 房态图/在住查看权（保洁不授予）
+│   ├── V16__room_board_in_house_perms.sql  # 房态图/在住查看权（保洁不授予）
+│   └── V17__shift_handover_align.sql # 结班表汇总列对齐（交班预览/结班）
 ├── backend/
 └── frontend/
 ```
@@ -168,19 +170,22 @@ npm run dev
 | 在住管理 | `/in-house` | `stay:in_house:view`（保洁角色无此权限） |
 | 预订管理 | `/reservations` | `reservation:manage` |
 | 保洁任务 | `/housekeeping` | `hk:view`；`hk:complete` 可完成打扫 |
+| 开班结班 | `/shift` | `shift:open` / `shift:close`；预览待办与收款；`shift:force_close` 强制结班 |
+| 经营统计 | `/stats` | `stat:view`（店长/管理员；前台默认无） |
 
 ### 验证步骤（当前 MVP）
 
-1. 登录 `admin` / `admin123`，确认进入房态图。  
+1. 登录 `admin` / `admin123`，确认进入房态图（旧库须已执行 **V16**）。  
 2. 系统管理：用户 **修改密码**、**删除**；角色/直授 **恢复默认**（见 [手动验收清单](./docs/MANUAL_ACCEPTANCE.md)）。  
 3. 房型/客房 CRUD，房态图筛选、维修、净/脏切换、强制改态。  
-4. **开班** → 办理入住或房态图 Walk-in/预订入住（收款=应付）→ 在住 **退房** 或 **退款**。  
-5. 详见 [手动验收清单](./docs/MANUAL_ACCEPTANCE.md)（含 MOD-BILL）。
+4. **开班** → 办理入住或房态图 Walk-in/预订入住（收款=应付）→ 在住 **退房** 或 **退款** → 保洁 **完成打扫** → **结班**（见 MOD-SHIFT）。  
+5. 店长/管理员查看 **经营统计** `/stats`（MOD-STAT）。  
+6. 完整用例见 [手动验收清单](./docs/MANUAL_ACCEPTANCE.md)（§一～§九）。
 
 ## 贡献规范
 
-1. **需求变更**：先更新 `specs/spec.md`，再同步 `plan.md`、`tasks.md`、`PROJECT_STATUS.md`。  
-2. **任务执行**：以 `specs/tasks.md` 任务编号为准，完成后标 `已完成` 并更新 PROJECT_STATUS。  
+1. **需求变更**：先更新 `specs/spec.md`，再同步 `plan.md`、`tasks.md`、`PROJECT_STATUS.md`、`docs/MANUAL_ACCEPTANCE.md`。  
+2. **任务执行**：以 `specs/tasks.md` 任务编号为准，完成后标 `已完成` 并更新 PROJECT_STATUS 与 README 进度表。  
 3. **Java 代码**：遵守 [AGENTS.md](./AGENTS.md)（JavaDoc、`@author liuxinsi`、禁止嵌套循环、参数化 SQL、禁止 DROP）。  
 4. **分支与提交**：`feat/<模块>-<简述>`；提交信息说明对应任务编号。  
 5. **危险操作**：生产写操作须二次确认；SQL 脚本禁止 `DROP TABLE/DATABASE`。

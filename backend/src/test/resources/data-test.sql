@@ -21,6 +21,7 @@ INSERT INTO sys_permission (id, code, name) VALUES (16, 'hk:view', '查看保洁
 INSERT INTO sys_permission (id, code, name) VALUES (17, 'hk:complete', '完成保洁');
 INSERT INTO sys_permission (id, code, name) VALUES (18, 'room:board:view', '查看房态图');
 INSERT INTO sys_permission (id, code, name) VALUES (19, 'stay:in_house:view', '在住管理');
+INSERT INTO sys_permission (id, code, name) VALUES (20, 'stat:view', '经营统计');
 
 INSERT INTO sys_user (id, username, password, status) VALUES
 (1, 'admin', '$2a$10$6am6wYerYdF3L6tzBP7LNeVP13IkCRu7OMClrkSfpOaO/KgQKw4/C', 1);

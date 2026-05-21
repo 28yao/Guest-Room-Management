@@ -5,6 +5,8 @@
 | 需求基线 | [spec.md](./spec.md) v1.0 |
 | 技术方案 | [plan.md](./plan.md) v1.0 |
 | 状态图例 | `已完成` / `进行中` / `待开始` |
+| 项目管理 | [README](../README.md)、[PROJECT_STATUS](../PROJECT_STATUS.md)、[手动验收](../docs/MANUAL_ACCEPTANCE.md) 与本文档同步更新 |
+| 文档同步 | 2026-05-22：已交付至 MOD-STAT；SQL V1～V17；权限 V16（房态图/在住） |
 
 ---
 
@@ -43,6 +45,7 @@
 |------|------|------|------|----------|------|
 | T-INFRA-DB-01 | 编写 `sql/V1__init_schema.sql`（仅 CREATE，含 plan §5.1 全表） | — | 3h | MySQL 执行成功，无 DROP 语句 | 已完成 |
 | T-INFRA-DB-02 | 编写种子数据：权限点、角色、管理员账号 | [依赖: T-INFRA-DB-01] | 1h | 管理员可登录（后续 T-AUTH 验证） | 已完成 |
+| T-INFRA-DB-04 | 迁移 V16/V17：房态图/在住权限、结班表对齐 | [依赖: T-INFRA-DB-02] | 0.5h | 旧库执行后前台可见房态图；结班不 50002 | 已完成 |
 | T-INFRA-DB-03 | 配置 MyBatis-Plus 与 `application-dev.yml` 数据源 | [依赖: T-INFRA-CTL-01, T-INFRA-DB-01] | 1h | 启动连库无报错 | 已完成 |
 
 ### 页面测试方法
@@ -637,26 +640,26 @@
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-STAT-FE-01 | 统计页：出租率+营收 | [依赖: T-STAT-CTL-01, T-STAT-CTL-02] | 2h | 需 `stat:view` | 待开始 |
+| T-STAT-FE-01 | 统计页：出租率+营收 | [依赖: T-STAT-CTL-01, T-STAT-CTL-02] | 2h | 需 `stat:view` | 已完成 |
 
 ### Controller 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-STAT-CTL-01 | `GET /api/v1/stats/occupancy` | [依赖: T-STAT-SVC-01] | 1h | 在住/可售 | 待开始 |
-| T-STAT-CTL-02 | `GET /api/v1/stats/revenue` | [依赖: T-STAT-SVC-01] | 1h | 区间房费合计 | 待开始 |
+| T-STAT-CTL-01 | `GET /api/v1/stats/occupancy` | [依赖: T-STAT-SVC-01] | 1h | 在住/可售 | 已完成 |
+| T-STAT-CTL-02 | `GET /api/v1/stats/revenue` | [依赖: T-STAT-SVC-01] | 1h | 区间房费合计 | 已完成 |
 
 ### Service 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-STAT-SVC-01 | `StatsService` 聚合查询 | [依赖: T-STAY-MAP-01, T-BILL-MAP-01] | 3h | 单店全局 | 待开始 |
+| T-STAT-SVC-01 | `StatsService` 聚合查询 | [依赖: T-STAY-MAP-01, T-BILL-MAP-01] | 3h | 单店全局 | 已完成 |
 
 ### Mapper 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-STAT-MAP-01 | 统计 SQL（出租率/营收） | [依赖: T-INFRA-DB-03] | 2h | 参数化日期 | 待开始 |
+| T-STAT-MAP-01 | 统计 SQL（出租率/营收） | [依赖: T-INFRA-DB-03] | 2h | 参数化日期 | 已完成 |
 
 ### Repository/数据持久化任务
 
@@ -672,15 +675,15 @@
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-STAT-IT-01 | 营收与已结账 payment 一致 | [依赖: T-STAT-CTL-02] | 1h | 数据一致 | 待开始 |
+| T-STAT-IT-01 | 营收与已结账 payment 一致 | [依赖: T-STAT-CTL-02] | 1h | 数据一致 | 已完成 |
 
 ### 异常情况测试
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-STAT-EX-01 | 日期区间非法校验 | [依赖: T-STAT-CTL-02] | 0.5h | 400 | 待开始 |
+| T-STAT-EX-01 | 日期区间非法校验 | [依赖: T-STAT-CTL-02] | 0.5h | 400 | 已完成 |
 
-**当前状态**：`待开始`
+**当前状态**：`已完成`（首批；T-STAT-UT-FE-01 路由守卫待补）
 
 ---
 
@@ -801,9 +804,9 @@
 
 ```
 T-INFRA-* → T-AUTH-* → T-ROOM-* → T-RES-* → T-STAY-* + T-BILL-*（已完成首批）
-→ T-HK-*（已完成）→ T-SHIFT-*（已完成）→ T-STAT-* + T-AUDIT-* → T-QA-*
+→ T-HK-*（已完成）→ T-SHIFT-*（已完成）→ T-STAT-*（已完成）→ T-AUDIT-* → T-QA-*
 ```
 
-**下一执行**：`MOD-STAT`（见 §9）→ `MOD-AUDIT` → `T-QA`。
+**下一执行**：`MOD-AUDIT`（见 §10）→ `T-QA`。
 
 **总工时估算（MVP）**：约 **185h**（含测试，不含可选 E2E）

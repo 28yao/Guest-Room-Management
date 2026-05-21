@@ -534,7 +534,7 @@ CREATE TABLE shift_session (
 | API ID | 方法 | 路径 | 权限 | Spec |
 |--------|------|------|------|------|
 | API-SHIFT-01 | POST | `/shifts/open` | `shift:open` | §11.1 |
-| API-SHIFT-02 | GET | `/shifts/current` | FRONT | OQ-03 |
+| API-SHIFT-02 | GET | `/shifts/current` | 登录 | 当前操作员开班会话（入住/房态图查班用） |
 | API-SHIFT-03 | GET | `/shifts/{id}/handover-preview` | `shift:close` | 待办+收款预览 |
 | API-SHIFT-04 | POST | `/shifts/{id}/close` | `shift:close` | §11.1 |
 | API-SHIFT-05 | GET | `/shifts/handover/{id}` | 登录 | 交班单详情 |
@@ -553,17 +553,15 @@ CREATE TABLE shift_session (
 | Page ID | 路由 | 页面 | 角色 | Spec |
 |---------|------|------|------|------|
 | PAGE-LOGIN | `/login` | 登录 | 全部 | §10.2 |
-| PAGE-DASH-ROOM | `/rooms/board` | 房态图（默认首页） | 登录 | §5.3 |
+| PAGE-DASH-ROOM | `/rooms/board` | 房态图（默认首页） | `room:board:view`（不含 HK） | §5.3 |
 | PAGE-ROOM-MGT | `/rooms` | 客房列表 | `room:manage` | §5.2 |
 | PAGE-TYPE-MGT | `/room-types` | 房型管理 | `room:type:manage` | §5.1 |
-| PAGE-RES | `/reservations` | 预订列表/表单 | FRONT | §6 |
-| PAGE-RES-DETAIL | `/reservations/:id` | 预订详情/排房/释放 | FRONT | §6.3–6.4 |
-| PAGE-CHECKIN | `/check-in` | 入住（Walk-in/预订） | FRONT | §7 |
-| PAGE-INHOUSE | `/in-house` | 在住管理/换房/改价 | FRONT | §7 |
-| PAGE-CHECKIN | `/check-in` | 办理入住（含结账） | FRONT | §7、§8 |
-| PAGE-HK | `/housekeeping` | 待打扫 | HK | §9 |
-| PAGE-SHIFT | `/shift` | 开班/结班 | FRONT | §11.1 |
-| PAGE-STAT | `/stats` | 简易统计 | MANAGER, ADMIN | §11.2 |
+| PAGE-RES | `/reservations` | 预订列表/表单/排房/释放 | `reservation:manage` | §6 |
+| PAGE-CHECKIN | `/check-in` | 办理入住（Walk-in/预订入住+结账） | `stay:checkin` | §7、§8 |
+| PAGE-INHOUSE | `/in-house` | 在住管理/换房/退房/退款 | `stay:in_house:view` | §7、§8 |
+| PAGE-HK | `/housekeeping` | 保洁任务 | `hk:view`（完成需 `hk:complete`） | §9 |
+| PAGE-SHIFT | `/shift` | 开班/结班预览/结班 | `shift:open` + `shift:close` | §11.1 |
+| PAGE-STAT | `/stats` | 经营统计 | `stat:view` | §11.2 |
 | PAGE-USER | `/system/users` | 用户管理（含修改密码、删除） | `system:user:manage` | §10.1 |
 | PAGE-ROLE | `/system/roles` | 角色权限（含恢复默认） | `system:role:manage` | §10.1 |
 | PAGE-USER-PERM | `/system/user-permissions` | 敏感权限直授（含恢复默认） | `system:permission:grant` | BR-05 |

@@ -74,6 +74,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '开班结班', permissions: ['shift:open', 'shift:close'] }
       },
       {
+        path: 'stats',
+        name: 'StatsDashboard',
+        component: () => import('@/views/stats/StatsDashboard.vue'),
+        meta: { title: '经营统计', permissions: ['stat:view'] }
+      },
+      {
         path: 'system/users',
         name: 'UserManage',
         component: () => import('@/views/system/UserManage.vue'),
