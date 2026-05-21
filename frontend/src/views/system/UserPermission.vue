@@ -1,7 +1,9 @@
 <template>
   <div>
     <h3>敏感权限直授</h3>
-    <p class="hint">用于将改价等敏感权限下放给指定账号（如前台）。默认无直授，仅继承角色权限。</p>
+    <p class="hint">
+      用于将改价（<code>billing:price:adjust</code>）、房态图（<code>room:board:view</code>）、在住管理（<code>stay:in_house:view</code>）等权限下放给指定账号。默认无直授，仅继承角色权限。
+    </p>
     <el-select v-model="selectedUserId" placeholder="选择用户" style="width: 240px; margin: 16px 0" @change="loadPerms">
       <el-option v-for="u in users" :key="u.id" :label="u.username" :value="u.id" />
     </el-select>

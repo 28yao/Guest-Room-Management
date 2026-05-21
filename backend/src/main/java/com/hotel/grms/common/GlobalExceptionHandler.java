@@ -33,6 +33,7 @@ public class GlobalExceptionHandler {
                     + "sql/V8__stay_order_guest.sql（缺 stay_order.guest_name 列）、"
                     + "sql/V9__folio_line_billing.sql（缺 folio_line.quantity/unit_price 列）、"
                     + "sql/V10__folio_timestamps.sql（缺 folio.created_at/updated_at 列）、"
+                    + "sql/V17__shift_handover_align.sql（结班表缺 cash_total 等；交接班常见）、"
                     + "sql/V14__room_clean_status.sql（缺 room.clean_status 列），"
                     + "或重新执行 sql/V1、V2 全量建库";
 
@@ -160,10 +161,15 @@ public class GlobalExceptionHandler {
             String message = cursor.getMessage();
             if (message != null && (message.contains("Unknown column")
                     || message.contains("doesn't exist"))) {
+                if (message.contains("cash_total") || message.contains("wechat_total")
+                        || message.contains("alipay_total") || message.contains("pending_snapshot")) {
+                    return "结班表结构与当前版本不一致，请在 grms 库执行 sql/V17__shift_handover_align.sql（缺收款汇总列或仍为 snapshot_json；交接班常见），或重新执行 sql/V1、V2 全量建库";
+                }
                 if (message.contains("quantity") || message.contains("unit_price")) {
                     return "账单明细表结构与当前版本不一致，请在 grms 库执行 sql/V9__folio_line_billing.sql（缺 quantity/unit_price 列），或重新执行 sql/V1、V2 全量建库";
                 }
-                if (message.contains("created_at") || message.contains("updated_at")) {
+                if ((message.contains("folio") || message.contains("'folio."))
+                        && (message.contains("created_at") || message.contains("updated_at"))) {
                     return "账单主表结构与当前版本不一致，请在 grms 库执行 sql/V10__folio_timestamps.sql（缺 folio.created_at/updated_at 列；换房重算常见），或重新执行 sql/V1、V2 全量建库";
                 }
                 if (message.contains("clean_status")) {

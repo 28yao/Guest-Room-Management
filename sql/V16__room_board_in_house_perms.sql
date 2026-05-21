@@ -1,7 +1,12 @@
 -- 房态图、在住管理访问权限（保洁角色不授予）
--- 依赖：V2 种子已执行
+-- 1) 写入 sys_permission，供「角色权限配置」「敏感权限直授」勾选
+-- 2) 授予 ROLE_ADMIN / ROLE_MANAGER / ROLE_FRONT_DESK（不含 ROLE_HOUSEKEEPING）
+-- 旧库若 V2 执行时尚无此二权限点，须单独执行本脚本
+-- 依赖：V1、V2 已执行
 
 SET NAMES utf8mb4;
+
+-- Windows PowerShell 执行请加：-Encoding UTF8 与 mysql --default-character-set=utf8mb4（见 README）
 
 INSERT INTO sys_permission (code, name, description) VALUES
 ('room:board:view', '查看房态图', '房态图、客房日程、楼层筛选'),

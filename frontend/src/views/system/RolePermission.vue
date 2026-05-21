@@ -3,6 +3,7 @@
     <h3>角色权限配置</h3>
     <p class="hint">
       保存后对该角色下<strong>已分配该角色</strong>的用户生效；请同时在「用户管理」中为用户勾选对应角色。
+      房态图（<code>room:board:view</code>）、在住管理（<code>stay:in_house:view</code>）默认授予管理员/店长/前台，<strong>不授予保洁</strong>。
     </p>
     <el-select v-model="selectedRoleId" placeholder="选择角色" style="width: 240px; margin: 16px 0" @change="loadPerms">
       <el-option v-for="r in roles" :key="r.id" :label="r.name" :value="r.id" />

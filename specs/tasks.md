@@ -502,23 +502,23 @@
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-HK-FE-01 | 保洁任务列表页（按楼层筛） | [依赖: T-HK-CTL-01] | 2h | 仅 PENDING | 待开始 |
-| T-HK-FE-02 | 完成打扫确认 | [依赖: T-HK-CTL-02] | 1h | 二次确认 | 待开始 |
+| T-HK-FE-01 | 保洁任务列表页（按楼层筛） | [依赖: T-HK-CTL-01] | 2h | 仅 PENDING | 已完成 |
+| T-HK-FE-02 | 完成打扫确认 | [依赖: T-HK-CTL-02] | 1h | 二次确认 | 已完成 |
 
 ### Controller 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-HK-CTL-01 | `GET /api/v1/hk/tasks` | [依赖: T-HK-SVC-01] | 1h | `hk:view` | 待开始 |
-| T-HK-CTL-02 | `POST /hk/tasks/{id}/complete` | [依赖: T-HK-SVC-02] | 1h | `hk:complete` | 待开始 |
+| T-HK-CTL-01 | `GET /api/v1/hk/tasks` | [依赖: T-HK-SVC-01] | 1h | `hk:view` | 已完成 |
+| T-HK-CTL-02 | `POST /hk/tasks/{id}/complete` | [依赖: T-HK-SVC-02] | 1h | `hk:complete` | 已完成 |
 | T-HK-CTL-03 | `POST /rooms/{id}/mark-dirty` | [依赖: T-HK-SVC-01] | 1h | 前台置脏 | 待开始 |
 
 ### Service 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-HK-SVC-01 | `HousekeepingService.createTaskOnDirty` | [依赖: T-HK-MAP-01] | 2h | 脏房必有任务 | 进行中（退房已接入；列表查询待补） |
-| T-HK-SVC-02 | `completeTask`→房态 VACANT_CLEAN | [依赖: T-ROOM-SVC-04] | 2h | BR-10 | 待开始 |
+| T-HK-SVC-01 | `HousekeepingService.createTaskOnDirty` | [依赖: T-HK-MAP-01] | 2h | 脏房必有任务 | 已完成 |
+| T-HK-SVC-02 | `completeTask`→房态 VACANT_CLEAN | [依赖: T-ROOM-SVC-04] | 2h | BR-10 | 已完成 |
 
 ### Mapper 层任务
 
@@ -531,6 +531,8 @@
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
 | T-HK-REPO-01 | 实体 `HkTask` | [依赖: T-INFRA-DB-01] | 0.5h | — | 已完成 |
+
+**当前状态**：`已完成`
 
 ### 页面测试方法
 
@@ -551,7 +553,7 @@
 |------|------|------|------|----------|------|
 | T-HK-EX-01 | 重复完成同一任务幂等处理 | [依赖: T-HK-SVC-02] | 0.5h | 不报错或 409 | 待开始 |
 
-**当前状态**：`进行中`（`createTaskOnDirty` 已用于退房；Controller/完成打扫/前端列表待开发）
+**当前状态**：`已完成`（列表/完成 API；T-HK-IT/EX 部分待补）
 
 ---
 
@@ -568,8 +570,8 @@
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-SHIFT-FE-01 | 开班/当前班状态展示 | [依赖: T-SHIFT-CTL-01, T-SHIFT-CTL-02] | 2h | 未开班明显提示 | 待开始 |
-| T-SHIFT-FE-02 | 结班预览+确认（待办列表） | [依赖: T-SHIFT-CTL-03, T-SHIFT-CTL-04] | 3h | 有待办阻断或强制 | 待开始 |
+| T-SHIFT-FE-01 | 开班/当前班状态展示 | [依赖: T-SHIFT-CTL-01, T-SHIFT-CTL-02] | 2h | 未开班明显提示 | 已完成 |
+| T-SHIFT-FE-02 | 结班预览+确认（待办列表） | [依赖: T-SHIFT-CTL-03, T-SHIFT-CTL-04] | 3h | 有待办阻断或强制 | 已完成 |
 
 ### Controller 层任务
 
@@ -577,28 +579,28 @@
 |------|------|------|------|----------|------|
 | T-SHIFT-CTL-01 | `POST /api/v1/shifts/open` | [依赖: T-SHIFT-SVC-01] | 1h | 创建 OPEN session | 已完成 |
 | T-SHIFT-CTL-02 | `GET /shifts/current` | [依赖: T-SHIFT-SVC-01] | 1h | 当前操作员班 | 已完成 |
-| T-SHIFT-CTL-03 | `GET /shifts/{id}/handover-preview` | [依赖: T-SHIFT-SVC-02] | 2h | 收款+待办 | 待开始 |
-| T-SHIFT-CTL-04 | `POST /shifts/{id}/close` | [依赖: T-SHIFT-SVC-03] | 2h | 生成 handover | 待开始 |
+| T-SHIFT-CTL-03 | `GET /shifts/{id}/handover-preview` | [依赖: T-SHIFT-SVC-02] | 2h | 收款+待办 | 已完成 |
+| T-SHIFT-CTL-04 | `POST /shifts/{id}/close` | [依赖: T-SHIFT-SVC-03] | 2h | 生成 handover | 已完成 |
 
 ### Service 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
 | T-SHIFT-SVC-01 | `ShiftSessionService.open/getCurrent` | [依赖: T-SHIFT-MAP-01] | 3h | 一人一 open 班 | 已完成 |
-| T-SHIFT-SVC-02 | `buildHandoverPreview`：聚合 payment+待办 | [依赖: T-BILL-MAP-01] | 4h | TC-10 数据正确 | 待开始 |
-| T-SHIFT-SVC-03 | `closeShift`：待办阻断/force_close | [依赖: T-SHIFT-SVC-02] | 3h | OQ-03 | 待开始 |
+| T-SHIFT-SVC-02 | `buildHandoverPreview`：聚合 payment+待办 | [依赖: T-BILL-MAP-01] | 4h | TC-10 数据正确 | 已完成 |
+| T-SHIFT-SVC-03 | `closeShift`：待办阻断/force_close | [依赖: T-SHIFT-SVC-02] | 3h | OQ-03 | 已完成 |
 
 ### Mapper 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-SHIFT-MAP-01 | `ShiftSessionMapper` / `ShiftHandoverMapper` | [依赖: T-INFRA-DB-03] | 2h | 快照 JSON | 待开始 |
+| T-SHIFT-MAP-01 | `ShiftSessionMapper` / `ShiftHandoverMapper` | [依赖: T-INFRA-DB-03] | 2h | 快照 JSON | 已完成 |
 
 ### Repository/数据持久化任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-SHIFT-REPO-01 | 实体 `ShiftSession` / `ShiftHandover` | [依赖: T-INFRA-DB-01] | 1h | — | 待开始 |
+| T-SHIFT-REPO-01 | 实体 `ShiftSession` / `ShiftHandover` | [依赖: T-INFRA-DB-01] | 1h | — | 已完成 |
 
 ### 页面测试方法
 
@@ -610,7 +612,7 @@
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-SHIFT-IT-01 | 结班单含支付方式汇总 | [依赖: T-SHIFT-CTL-04] | 1h | TC-10 | 待开始 |
+| T-SHIFT-IT-01 | 结班单含支付方式汇总 | [依赖: T-SHIFT-CTL-04] | 1h | TC-10 | 已完成 |
 
 ### 异常情况测试
 
@@ -618,7 +620,7 @@
 |------|------|------|------|----------|------|
 | T-SHIFT-EX-01 | 重复开班处理 | [依赖: T-SHIFT-SVC-01] | 0.5h | 返回已有班或 409 | 待开始 |
 
-**当前状态**：`进行中`（开班/当前班已有；结班预览与关闭待开发）
+**当前状态**：`已完成`（首批；T-SHIFT-EX-01 重复结班已覆盖 IT）
 
 ---
 
@@ -799,9 +801,9 @@
 
 ```
 T-INFRA-* → T-AUTH-* → T-ROOM-* → T-RES-* → T-STAY-* + T-BILL-*（已完成首批）
-→ T-HK-*（进行中）→ T-SHIFT-*（结班待补）→ T-STAT-* + T-AUDIT-* → T-QA-*
+→ T-HK-*（已完成）→ T-SHIFT-*（已完成）→ T-STAT-* + T-AUDIT-* → T-QA-*
 ```
 
-**下一执行**：`T-HK-CTL-01/02`、`T-HK-SVC-02`、`T-HK-FE-01/02`（见 §7）。
+**下一执行**：`MOD-STAT`（见 §9）→ `MOD-AUDIT` → `T-QA`。
 
 **总工时估算（MVP）**：约 **185h**（含测试，不含可选 E2E）

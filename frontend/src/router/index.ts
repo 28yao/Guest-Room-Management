@@ -68,6 +68,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '保洁任务', permissions: ['hk:view'] }
       },
       {
+        path: 'shift',
+        name: 'ShiftHandover',
+        component: () => import('@/views/shift/ShiftHandover.vue'),
+        meta: { title: '开班结班', permissions: ['shift:open', 'shift:close'] }
+      },
+      {
         path: 'system/users',
         name: 'UserManage',
         component: () => import('@/views/system/UserManage.vue'),

@@ -26,4 +26,19 @@ public final class SecurityUtils {
         }
         return ((LoginUser) authentication.getPrincipal()).getUserId();
     }
+
+    /**
+     * 当前用户是否拥有指定权限码。
+     *
+     * @param authority 权限码
+     * @return 是否拥有
+     */
+    public static boolean hasAuthority(String authority) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authority == null) {
+            return false;
+        }
+        return authentication.getAuthorities().stream()
+                .anyMatch(granted -> authority.equals(granted.getAuthority()));
+    }
 }

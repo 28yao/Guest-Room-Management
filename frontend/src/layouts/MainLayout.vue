@@ -7,6 +7,12 @@
         <el-menu-item v-if="auth.hasPermission('reservation:manage')" index="/reservations">
           预订管理
         </el-menu-item>
+        <el-menu-item
+          v-if="auth.hasAnyPermission(['shift:open', 'shift:close'])"
+          index="/shift"
+        >
+          开班/结班
+        </el-menu-item>
         <el-menu-item v-if="auth.hasPermission('stay:checkin')" index="/check-in">
           办理入住
         </el-menu-item>

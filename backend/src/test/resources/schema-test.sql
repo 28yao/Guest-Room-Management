@@ -167,3 +167,13 @@ CREATE TABLE IF NOT EXISTS shift_session (
     closed_at TIMESTAMP,
     status VARCHAR(16) NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS shift_handover (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    shift_session_id BIGINT NOT NULL,
+    cash_total DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    wechat_total DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    alipay_total DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    pending_snapshot VARCHAR(4000),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

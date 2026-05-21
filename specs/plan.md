@@ -326,7 +326,7 @@ effectiveDailyRate = stay_order.agreed_daily_rate ?? room_type.rack_rate
 | `stat:view` | 出租率/营收 | MANAGER, ADMIN |
 | `audit:view` | 审计查询 | ADMIN, MANAGER |
 
-管理员通过 **「用户-权限直授」** 实现改价下放（spec §3.3、BR-05）。
+管理员通过 **「角色权限配置」** 调整各角色是否含 `room:board:view`、`stay:in_house:view`；通过 **「敏感权限直授」** 向单用户追加房态图/在住查看或改价等（spec §3.3、BR-05）。保洁角色默认不授予前二者。
 
 ### 4.3 后端鉴权实现
 

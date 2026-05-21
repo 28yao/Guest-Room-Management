@@ -13,18 +13,19 @@
 | [docs/MANUAL_ACCEPTANCE.md](./docs/MANUAL_ACCEPTANCE.md) | **手动验收清单**（已交付模块） |
 | [AGENTS.md](./AGENTS.md) | 技术栈与编码约束 |
 
-## 当前进度（截至 2026-05-21）
+## 当前进度（截至 2026-05-22）
 
 | 模块 | 状态 | 说明 |
 |------|------|------|
-| MOD-INFRA | 已完成 | 工程骨架、SQL V1～V14、健康检查 |
+| MOD-INFRA | 已完成 | 工程骨架、SQL V1～V16、健康检查 |
 | MOD-AUTH | 已完成 | 登录/JWT/RBAC；用户改密/删除、角色/直授 **恢复默认** |
 | MOD-ROOM | 已完成 | 房态图双维标签；房型/客房；维修；净/脏切换（V14）；强制改态 |
 | MOD-RES | 已完成 | 预订 CRUD、预排房、释放/取消、退订退款（V11）、可售查询 |
 | MOD-STAY | 已完成 | 办理入住、在住管理；房态图快速预订/Walk-in/**预订入住**/退房/退款/换房 |
 | MOD-BILL | 已完成（首批） | 入住时结清房费；改价/支付；退房仅释放客房 |
-| MOD-HK | 进行中 | 退房已生成 `hk_task`；保洁列表与完成 API 待开发 |
-| MOD-SHIFT 及以后 | 部分/待开发 | 开班已有；结班见 [tasks.md](./specs/tasks.md) §8 起 |
+| MOD-HK | 已完成（首批） | 保洁任务列表/完成；`hk01` 不可看房态图、在住（V16） |
+| MOD-SHIFT | 已完成（首批） | 开班/结班预览/关闭；待办阻断与强制结班 |
+| MOD-STAT 及以后 | 待开发 | 见 [tasks.md](./specs/tasks.md) §9 起 |
 
 **默认账号**（`sql/V2__seed_data.sql`）：`admin` / `admin123`（管理员）；`hk01` / `admin123`（保洁，仅保洁任务）
 
@@ -92,6 +93,7 @@ mysql -u root -p grms < sql/V12__front_desk_room_clean.sql
 mysql -u root -p grms < sql/V13__restore_room_clean_dirty_perms.sql
 mysql -u root -p grms < sql/V14__room_clean_status.sql
 mysql -u root -p grms < sql/V16__room_board_in_house_perms.sql
+mysql -u root -p grms < sql/V17__shift_handover_align.sql
 # 房态图演示数据（可选）：
 mysql -u root -p grms < sql/V4__room_seed.sql
 ```
@@ -99,7 +101,9 @@ mysql -u root -p grms < sql/V4__room_seed.sql
 **Windows PowerShell**（`<` 重定向不可用时可逐条管道执行）：
 
 ```powershell
-Get-Content sql/V14__room_clean_status.sql -Raw | mysql -u root -p你的密码 grms
+# 含中文的脚本请指定字符集，避免 PowerShell 管道乱码
+Get-Content sql/V16__room_board_in_house_perms.sql -Encoding UTF8 -Raw | mysql -u root -p你的密码 --default-character-set=utf8mb4 grms
+Get-Content sql/V14__room_clean_status.sql -Encoding UTF8 -Raw | mysql -u root -p你的密码 --default-character-set=utf8mb4 grms
 ```
 
 **表结构不一致（前端/接口 50002）**：后端日志中 `Unknown column` 指明缺列；常见对照：
@@ -112,10 +116,12 @@ Get-Content sql/V14__room_clean_status.sql -Raw | mysql -u root -p你的密码 g
 | `stay_order.guest_name` | V8 |
 | `folio_line.quantity` / `unit_price` | V9 |
 | `folio.created_at` / `updated_at` | V10 |
+| **`shift_handover.cash_total`（交接班报错，实为结班表）** | **V17** |
 | 预订退款 `payment.folio_id` 不可空 | V11 |
 | **`room.clean_status`（房态图整页报错）** | **V14**（执行后重启后端） |
+| **侧栏无「房态图」「在住管理」/ 接口 403**（保洁除外） | **V16**（补权限点并授予管理员/店长/前台；须在「角色权限」「敏感权限直授」中可见） |
 
-已执行 V3～V10 仍报「表结构不一致」时，优先检查并执行 **V14**；或按上表从 README 顺序补跑 V11～V14。
+已执行 V3～V10 仍报「表结构不一致」时，优先检查并执行 **V14**；或按上表从 README 顺序补跑 V11～V17。
 
 **开发库重置在住数据**（可选，确认非生产库）：`sql/V15__cleanup_stay_data.sql` 清空在住/账单/保洁任务并恢复空房占用态。
 
@@ -156,8 +162,8 @@ npm run dev
 | 客房管理 | `/rooms` | `room:manage` |
 | 房型管理 | `/room-types` | `room:type:manage` |
 | 用户管理 | `/system/users` | `system:user:manage`；含 **修改密码**、**删除用户** |
-| 角色权限 | `/system/roles` | `system:role:manage`；含 **恢复默认** |
-| 敏感权限直授 | `/system/user-permissions` | `system:permission:grant`；含 **恢复默认** |
+| 角色权限 | `/system/roles` | `system:role:manage`；可勾选 `room:board:view`、`stay:in_house:view` 等；含 **恢复默认** |
+| 敏感权限直授 | `/system/user-permissions` | `system:permission:grant`；可向单用户直授房态图/在住查看等；含 **恢复默认** |
 | 办理入住 | `/check-in` | `stay:checkin`；Walk-in / 预订入住 Tab，**入住时结清房费** |
 | 在住管理 | `/in-house` | `stay:in_house:view`（保洁角色无此权限） |
 | 预订管理 | `/reservations` | `reservation:manage` |
