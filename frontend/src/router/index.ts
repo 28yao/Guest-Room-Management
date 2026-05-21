@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { getToken } from '@/api/request'
 import { useAuthStore } from '@/stores/auth'
 
@@ -76,16 +77,15 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
   const auth = useAuthStore()
-  if (!auth.username) {
-    try {
-      await auth.fetchMe()
-    } catch {
-      next({ path: '/login' })
-      return
-    }
+  try {
+    await auth.syncPermissions()
+  } catch {
+    next({ path: '/login' })
+    return
   }
   const required = to.meta.permissions as string[] | undefined
   if (required && required.length > 0 && !auth.hasAnyPermission(required)) {
+    ElMessage.warning('无权限访问该页面')
     next({ path: '/home' })
     return
   }

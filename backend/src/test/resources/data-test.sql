@@ -8,6 +8,8 @@ INSERT INTO sys_permission (id, code, name) VALUES (4, 'room:type:manage', '房�
 INSERT INTO sys_permission (id, code, name) VALUES (5, 'room:manage', '客房维护');
 INSERT INTO sys_permission (id, code, name) VALUES (6, 'room:status:maintenance', '客房维修');
 INSERT INTO sys_permission (id, code, name) VALUES (7, 'room:status:force', '强制改房态');
+INSERT INTO sys_permission (id, code, name) VALUES (8, 'room:status:dirty', '设为脏房');
+INSERT INTO sys_permission (id, code, name) VALUES (9, 'room:status:clean', '设为空净');
 
 INSERT INTO sys_user (id, username, password, status) VALUES
 (1, 'admin', '$2a$10$6am6wYerYdF3L6tzBP7LNeVP13IkCRu7OMClrkSfpOaO/KgQKw4/C', 1);
@@ -20,3 +22,4 @@ INSERT INTO sys_user_role VALUES (2, 2);
 INSERT INTO sys_role_permission SELECT 1, id FROM sys_permission;
 
 INSERT INTO sys_role_permission VALUES (2, 3);
+INSERT INTO sys_role_permission VALUES (2, 8);

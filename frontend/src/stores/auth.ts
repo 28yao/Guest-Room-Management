@@ -37,6 +37,14 @@ export const useAuthStore = defineStore('auth', () => {
     permissions.value = data.permissions || []
   }
 
+  /** 从服务端同步最新权限（角色/直授变更后无需重新登录） */
+  async function syncPermissions() {
+    if (!getToken()) {
+      return
+    }
+    await fetchMe()
+  }
+
   async function logout() {
     try {
       await logoutApi()
@@ -68,6 +76,7 @@ export const useAuthStore = defineStore('auth', () => {
     hasAnyPermission,
     login,
     fetchMe,
+    syncPermissions,
     logout,
     restoreSession
   }

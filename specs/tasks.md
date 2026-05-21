@@ -1,4 +1,4 @@
-﻿# 可执行任务清单（MVP）
+# 可执行任务清单（MVP）
 
 | 属性 | 值 |
 |------|-----|
@@ -72,6 +72,12 @@
 
 **用户操作流程**：输入账号密码登录 → 按角色看到菜单 → 管理员为用户勾选 `billing:price:adjust` 等敏感权。
 
+**已实现增强（文档同步 2026-05-21）**：
+
+- 用户管理：操作列 **修改密码**（`PUT /api/v1/users/{id}/password`）、**删除**（`DELETE /api/v1/users/{id}`）
+- 角色权限：**恢复默认**（`POST /api/v1/roles/{id}/permissions/restore-default`，对齐 `V2__seed_data.sql`）
+- 敏感权限直授：**恢复默认**（`POST /api/v1/users/{id}/permissions/restore-default`，清空直授）
+
 ### 前端页面任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
@@ -79,9 +85,9 @@
 | T-AUTH-FE-01 | 登录页 `Login.vue` + token 存储 | [依赖: T-INFRA-FE-01] | 2h | 登录成功跳转首页 | 已完成 |
 | T-AUTH-FE-02 | Axios 拦截器附加 JWT、401 跳转登录 | [依赖: T-AUTH-FE-01] | 1h | 过期自动登出 | 已完成 |
 | T-AUTH-FE-03 | 路由守卫 `meta.permissions` | [依赖: T-AUTH-FE-02] | 2h | 无权限路由不可进入 | 已完成 |
-| T-AUTH-FE-04 | 用户管理页：列表/新增/停用 | [依赖: T-AUTH-FE-03, T-AUTH-CTL-04] | 3h | CRUD 与后端一致 | 已完成 |
-| T-AUTH-FE-05 | 角色权限配置页 | [依赖: T-AUTH-CTL-05] | 3h | 勾选保存生效 | 已完成 |
-| T-AUTH-FE-06 | 用户敏感权限直授页 | [依赖: T-AUTH-CTL-06] | 2h | 改价权可授/可撤 | 已完成 |
+| T-AUTH-FE-04 | 用户管理页：列表/新增/停用/修改密码 | [依赖: T-AUTH-FE-03, T-AUTH-CTL-04] | 3h | CRUD 与改密 | 已完成 |
+| T-AUTH-FE-05 | 角色权限配置页（含恢复默认） | [依赖: T-AUTH-CTL-05] | 3h | 勾选保存/恢复种子默认 | 已完成 |
+| T-AUTH-FE-06 | 用户敏感权限直授页（含恢复默认） | [依赖: T-AUTH-CTL-06] | 2h | 改价权可授/可撤/清空直授 | 已完成 |
 
 ### Controller 层任务
 
@@ -92,7 +98,11 @@
 | T-AUTH-CTL-03 | `GET /api/v1/auth/me` | [依赖: T-AUTH-CTL-01] | 1h | 返回当前用户与权限 | 已完成 |
 | T-AUTH-CTL-04 | `GET/POST/PUT /api/v1/users` | [依赖: T-AUTH-SVC-02] | 2h | 需 `system:user:manage` | 已完成 |
 | T-AUTH-CTL-05 | `GET/PUT /api/v1/roles/{id}/permissions` | [依赖: T-AUTH-SVC-03] | 2h | 需 `system:role:manage` | 已完成 |
+| T-AUTH-CTL-05a | `POST .../roles/{id}/permissions/restore-default` | [依赖: T-AUTH-SVC-03] | 1h | 恢复种子默认 | 已完成 |
 | T-AUTH-CTL-06 | `PUT /api/v1/users/{id}/permissions` | [依赖: T-AUTH-SVC-03] | 1h | 需 `system:permission:grant` | 已完成 |
+| T-AUTH-CTL-06a | `POST .../users/{id}/permissions/restore-default` | [依赖: T-AUTH-SVC-03] | 0.5h | 清空直授 | 已完成 |
+| T-AUTH-CTL-07 | `PUT /api/v1/users/{id}/password` | [依赖: T-AUTH-SVC-02] | 1h | 管理员改密 | 已完成 |
+| T-AUTH-CTL-08 | `DELETE /api/v1/users/{id}` | [依赖: T-AUTH-SVC-02] | 1h | 删用户+约束 | 已完成 |
 
 ### Service 层任务
 
@@ -138,16 +148,22 @@
 
 **当前状态**：`已完成`
 
+### 已知缺陷（后期修复）
+
+| 编号 | 任务 | 说明 | 状态 |
+|------|------|------|------|
+| T-AUTH-BUG-01 | 用户管理权限：角色/直授后前端仍提示无权限 | 现象：授予 `system:user:manage` 后访问 `/system/users` 仍被路由守卫拦截；后端 `GET /api/v1/users` 集成测试可通过。已尝试路由前 `syncPermissions()`，**仍未解决**，保留后期修改 | **待开始** |
+
 ---
 
 ## 3. 客房管理（MOD-ROOM）
 
-**模块目标**：房型/客房 CRUD、房态图、维修、强制改房态。  
+**模块目标**：房型/客房 CRUD、房态图、维修、前台置脏/保洁置空净、强制改房态。  
 **Spec/plan**：spec §5；plan §3.3、API-ROOM
 
-**用户可见内容**：房态图首页；房型/客房管理；维修与强制改态对话框。
+**用户可见内容**：房态图首页；房型/客房管理；维修、置脏/置净与强制改态操作。
 
-**用户操作流程**：查看房态图筛选 → 管理员维护房型门市价 → 设置维修（原因+ETA）→ 授权用户强制改态（二次确认）。
+**用户操作流程**：查看房态图筛选 → 管理员维护房型门市价 → 设置维修（原因+ETA）→ 前台「设为脏房」/ 保洁「设为空净」→ 店长强制改态（二次确认）。
 
 ### 前端页面任务
 
@@ -158,6 +174,7 @@
 | T-ROOM-FE-03 | 客房管理页 CRUD | [依赖: T-ROOM-CTL-02] | 3h | 房号唯一校验提示 | 已完成 |
 | T-ROOM-FE-04 | 维修对话框（原因、ETA 必填） | [依赖: T-ROOM-CTL-04] | 2h | 提交后房态维修 | 已完成 |
 | T-ROOM-FE-05 | 强制改态对话框（原因二次确认） | [依赖: T-ROOM-CTL-06] | 2h | 无权限不显示入口 | 已完成 |
+| T-ROOM-FE-06 | 房态图「设为脏房/设为空净」按钮 | [依赖: T-ROOM-CTL-07,08] | 1h | 按权限与当前态显示 | 已完成 |
 
 ### Controller 层任务
 
@@ -169,6 +186,8 @@
 | T-ROOM-CTL-04 | `POST /rooms/{id}/maintenance` | [依赖: T-ROOM-SVC-03] | 1h | BR-11 校验 | 已完成 |
 | T-ROOM-CTL-05 | `POST /rooms/{id}/maintenance/end` | [依赖: T-ROOM-SVC-03] | 1h | 结束维修 | 已完成 |
 | T-ROOM-CTL-06 | `POST /rooms/{id}/status/force` | [依赖: T-ROOM-SVC-04] | 1h | 需 `room:status:force` | 已完成 |
+| T-ROOM-CTL-07 | `POST /rooms/{id}/status/dirty` | [依赖: T-ROOM-SVC-04] | 1h | 需 `room:status:dirty` | 已完成 |
+| T-ROOM-CTL-08 | `POST /rooms/{id}/status/clean` | [依赖: T-ROOM-SVC-04] | 1h | 需 `room:status:clean` | 已完成 |
 
 ### Service 层任务
 

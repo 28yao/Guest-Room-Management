@@ -9,7 +9,9 @@ import com.hotel.grms.module.auth.entity.SysRole;
 import com.hotel.grms.module.auth.entity.SysUser;
 import com.hotel.grms.module.auth.mapper.SysRoleMapper;
 import com.hotel.grms.module.auth.mapper.SysUserMapper;
+import com.hotel.grms.module.auth.mapper.SysUserPermissionMapper;
 import com.hotel.grms.module.auth.mapper.SysUserRoleMapper;
+import com.hotel.grms.security.SecurityUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,15 +32,17 @@ public class UserService {
     private final SysUserMapper sysUserMapper;
     private final SysRoleMapper sysRoleMapper;
     private final SysUserRoleMapper sysUserRoleMapper;
+    private final SysUserPermissionMapper sysUserPermissionMapper;
     private final PermissionService permissionService;
     private final PasswordEncoder passwordEncoder;
 
     public UserService(SysUserMapper sysUserMapper, SysRoleMapper sysRoleMapper,
-                       SysUserRoleMapper sysUserRoleMapper, PermissionService permissionService,
-                       PasswordEncoder passwordEncoder) {
+                       SysUserRoleMapper sysUserRoleMapper, SysUserPermissionMapper sysUserPermissionMapper,
+                       PermissionService permissionService, PasswordEncoder passwordEncoder) {
         this.sysUserMapper = sysUserMapper;
         this.sysRoleMapper = sysRoleMapper;
         this.sysUserRoleMapper = sysUserRoleMapper;
+        this.sysUserPermissionMapper = sysUserPermissionMapper;
         this.permissionService = permissionService;
         this.passwordEncoder = passwordEncoder;
     }
@@ -103,6 +107,45 @@ public class UserService {
             saveUserRoles(id, request.getRoleIds());
         }
         return toResponse(sysUserMapper.selectById(id));
+    }
+
+    /**
+     * 删除用户及其角色、直授关联。
+     *
+     * @param id 用户 ID
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteUser(Long id) {
+        SysUser user = sysUserMapper.selectById(id);
+        if (user == null) {
+            throw new BusinessException(40011, "用户不存在");
+        }
+        if ("admin".equalsIgnoreCase(user.getUsername())) {
+            throw new BusinessException(40018, "内置管理员账号不可删除");
+        }
+        Long currentUserId = SecurityUtils.currentUserId();
+        if (currentUserId != null && currentUserId.equals(id)) {
+            throw new BusinessException(40019, "不能删除当前登录账号");
+        }
+        sysUserPermissionMapper.deleteByUserId(id);
+        sysUserRoleMapper.deleteByUserId(id);
+        sysUserMapper.deleteById(id);
+    }
+
+    /**
+     * 管理员重置用户登录密码。
+     *
+     * @param id       用户 ID
+     * @param password 新密码明文
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void changePassword(Long id, String password) {
+        SysUser user = sysUserMapper.selectById(id);
+        if (user == null) {
+            throw new BusinessException(40011, "用户不存在");
+        }
+        user.setPassword(passwordEncoder.encode(password));
+        sysUserMapper.updateById(user);
     }
 
     /**

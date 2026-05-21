@@ -288,6 +288,8 @@ effectiveDailyRate = stay_order.agreed_daily_rate ?? room_type.rack_rate
 | `room:type:manage` | 房型维护 | ADMIN |
 | `room:manage` | 客房维护 | ADMIN, MANAGER |
 | `room:status:maintenance` | 设维修/结束维修 | FRONT, MANAGER |
+| `room:status:dirty` | 设为脏房 | FRONT, MANAGER |
+| `room:status:clean` | 设为空净 | HOUSEKEEPING, MANAGER |
 | `room:status:force` | 强制改房态 | MANAGER（可下放） |
 | `reservation:manage` | 预订 CRUD、释放 | FRONT |
 | `stay:checkin` | 入住 | FRONT |
@@ -434,9 +436,13 @@ CREATE TABLE shift_session (
 
 | API ID | 方法 | 路径 | 权限 | Spec |
 |--------|------|------|------|------|
-| API-SYS-01 | GET/POST/PUT | `/users` | `system:user:manage` | §10.1 |
+| API-SYS-01 | GET/POST/PUT/DELETE | `/users`、`/users/{id}` | `system:user:manage` | §10.1 |
+| API-SYS-01a | PUT | `/users/{id}/password` | `system:user:manage` | 管理员重置密码（已实现） |
+| API-SYS-01b | DELETE | `/users/{id}` | `system:user:manage` | 删除用户；不可删 admin/当前登录账号（已实现） |
 | API-SYS-02 | GET/PUT | `/roles/{id}/permissions` | `system:role:manage` | §10.1 |
+| API-SYS-02a | POST | `/roles/{id}/permissions/restore-default` | `system:role:manage` | 恢复 V2 种子默认权限（已实现） |
 | API-SYS-03 | PUT | `/users/{id}/permissions` | `system:permission:grant` | BR-05 |
+| API-SYS-03a | POST | `/users/{id}/permissions/restore-default` | `system:permission:grant` | 清空直授（已实现） |
 | API-SYS-04 | GET | `/audit/logs` | `audit:view` | §10.3 |
 | API-SYS-05 | GET/PUT | `/config` | ADMIN | OQ-01 |
 
@@ -449,7 +455,9 @@ CREATE TABLE shift_session (
 | API-ROOM-03 | GET | `/rooms/board` | 登录 | §5.3；含 daily_tags |
 | API-ROOM-04 | POST | `/rooms/{id}/maintenance` | `room:status:maintenance` | BR-11 |
 | API-ROOM-05 | POST | `/rooms/{id}/maintenance/end` | 同上 | §5.2 |
-| API-ROOM-06 | POST | `/rooms/{id}/status/force` | `room:status:force` | BR-02 |
+| API-ROOM-06 | POST | `/rooms/{id}/status/dirty` | `room:status:dirty` | 前台置脏（状态机） |
+| API-ROOM-06a | POST | `/rooms/{id}/status/clean` | `room:status:clean` | 保洁置空净（状态机） |
+| API-ROOM-07 | POST | `/rooms/{id}/status/force` | `room:status:force` | BR-02 |
 
 ### 6.4 预订 — MOD-RES
 
@@ -516,9 +524,9 @@ CREATE TABLE shift_session (
 | Page ID | 路由 | 页面 | 角色 | Spec |
 |---------|------|------|------|------|
 | PAGE-LOGIN | `/login` | 登录 | 全部 | §10.2 |
-| PAGE-DASH-ROOM | `/` | 房态图（默认首页） | FRONT, MANAGER | §5.3 |
-| PAGE-ROOM-MGT | `/rooms` | 客房列表 | ADMIN, MANAGER | §5.2 |
-| PAGE-TYPE-MGT | `/room-types` | 房型管理 | ADMIN | §5.1 |
+| PAGE-DASH-ROOM | `/rooms/board` | 房态图（默认首页） | 登录 | §5.3 |
+| PAGE-ROOM-MGT | `/rooms` | 客房列表 | `room:manage` | §5.2 |
+| PAGE-TYPE-MGT | `/room-types` | 房型管理 | `room:type:manage` | §5.1 |
 | PAGE-RES | `/reservations` | 预订列表/表单 | FRONT | §6 |
 | PAGE-RES-DETAIL | `/reservations/:id` | 预订详情/排房/释放 | FRONT | §6.3–6.4 |
 | PAGE-CHECKIN | `/check-in` | 入住（Walk-in/预订） | FRONT | §7 |
@@ -527,15 +535,19 @@ CREATE TABLE shift_session (
 | PAGE-HK | `/housekeeping` | 待打扫 | HK | §9 |
 | PAGE-SHIFT | `/shift` | 开班/结班 | FRONT | §11.1 |
 | PAGE-STAT | `/stats` | 简易统计 | MANAGER, ADMIN | §11.2 |
-| PAGE-USER | `/system/users` | 用户管理 | ADMIN | §10.1 |
-| PAGE-ROLE | `/system/roles` | 角色权限 | ADMIN | §10.1 |
-| PAGE-AUDIT | `/system/audit` | 审计日志 | ADMIN, MANAGER | §10.3 |
+| PAGE-USER | `/system/users` | 用户管理（含修改密码、删除） | `system:user:manage` | §10.1 |
+| PAGE-ROLE | `/system/roles` | 角色权限（含恢复默认） | `system:role:manage` | §10.1 |
+| PAGE-USER-PERM | `/system/user-permissions` | 敏感权限直授（含恢复默认） | `system:permission:grant` | BR-05 |
+| PAGE-AUDIT | `/system/audit` | 审计日志 | `audit:view` | §10.3 |
 
 ### 7.1 关键 UI 交互
 
 | 场景 | 交互 | 二次确认（AGENTS.md） |
 |------|------|------------------------|
 | 强制改房态 | 对话框：目标状态+原因 | Y |
+| 角色权限恢复默认 | 确认后写回种子权限 | Y |
+| 敏感直授恢复默认 | 确认后清空直授 | Y |
+| 管理员修改用户密码 | 新密码+确认密码 | N（管理员操作） |
 | 释放预订/No-show | 确认无罚金 | Y |
 | 退房结账 | 展示分笔支付，合计=应付 | Y |
 | 结班有待办 | 阻断或经理授权 | Y |

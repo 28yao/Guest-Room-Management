@@ -19,3 +19,9 @@ export function listRolePermissionsApi(roleId: number) {
 export function saveRolePermissionsApi(roleId: number, permissionIds: number[]) {
   return request.put(`/roles/${roleId}/permissions`, { permissionIds })
 }
+
+export function restoreRolePermissionsDefaultApi(roleId: number) {
+  return request.post<{ code: number; data: PermissionItem[] }>(
+    `/roles/${roleId}/permissions/restore-default`
+  )
+}

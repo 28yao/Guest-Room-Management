@@ -41,3 +41,17 @@ export function listUserPermissionsApi(userId: number) {
 export function saveUserPermissionsApi(userId: number, permissionIds: number[]) {
   return request.put(`/users/${userId}/permissions`, { permissionIds })
 }
+
+export function restoreUserPermissionsDefaultApi(userId: number) {
+  return request.post<{ code: number; data: PermissionItem[] }>(
+    `/users/${userId}/permissions/restore-default`
+  )
+}
+
+export function changeUserPasswordApi(userId: number, password: string) {
+  return request.put(`/users/${userId}/password`, { password })
+}
+
+export function deleteUserApi(userId: number) {
+  return request.delete(`/users/${userId}`)
+}

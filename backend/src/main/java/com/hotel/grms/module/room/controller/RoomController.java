@@ -7,6 +7,7 @@ import com.hotel.grms.module.room.dto.MaintenanceStartRequest;
 import com.hotel.grms.module.room.dto.RoomBoardItemDto;
 import com.hotel.grms.module.room.dto.RoomRequest;
 import com.hotel.grms.module.room.dto.RoomResponse;
+import com.hotel.grms.module.room.dto.RoomStatusVersionRequest;
 import com.hotel.grms.module.room.entity.Room;
 import com.hotel.grms.module.room.service.RoomBoardService;
 import com.hotel.grms.module.room.service.RoomMaintenanceService;
@@ -122,6 +123,34 @@ public class RoomController {
     public R<RoomResponse> endMaintenance(@PathVariable Long id,
                                           @Validated @RequestBody MaintenanceEndRequest request) {
         Room room = roomMaintenanceService.endMaintenance(id, request);
+        return R.ok(toResponse(room));
+    }
+
+    /**
+     * 设为脏房。
+     *
+     * @param id      客房 ID
+     * @param request 请求
+     * @return 更新后客房
+     */
+    @PostMapping("/{id}/status/dirty")
+    @PreAuthorize("hasAuthority('room:status:dirty')")
+    public R<RoomResponse> markDirty(@PathVariable Long id, @RequestBody(required = false) RoomStatusVersionRequest request) {
+        Room room = roomService.markDirty(id, request);
+        return R.ok(toResponse(room));
+    }
+
+    /**
+     * 设为空净。
+     *
+     * @param id      客房 ID
+     * @param request 请求
+     * @return 更新后客房
+     */
+    @PostMapping("/{id}/status/clean")
+    @PreAuthorize("hasAuthority('room:status:clean')")
+    public R<RoomResponse> markClean(@PathVariable Long id, @RequestBody(required = false) RoomStatusVersionRequest request) {
+        Room room = roomService.markClean(id, request);
         return R.ok(toResponse(room));
     }
 

@@ -5,6 +5,7 @@ import com.hotel.grms.common.BusinessException;
 import com.hotel.grms.module.room.RoomStatus;
 import com.hotel.grms.module.room.dto.ForceStatusRequest;
 import com.hotel.grms.module.room.dto.RoomRequest;
+import com.hotel.grms.module.room.dto.RoomStatusVersionRequest;
 import com.hotel.grms.module.room.dto.RoomResponse;
 import com.hotel.grms.module.room.entity.Room;
 import com.hotel.grms.module.room.entity.RoomType;
@@ -129,6 +130,30 @@ public class RoomService {
         room.setStatus(toStatus);
         updateWithOptimisticLock(room);
         return roomMapper.selectById(roomId);
+    }
+
+    /**
+     * 设为脏房（走状态机校验）。
+     *
+     * @param roomId  客房 ID
+     * @param request 请求
+     * @return 更新后客房
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Room markDirty(Long roomId, RoomStatusVersionRequest request) {
+        return transitionStatus(roomId, RoomStatus.DIRTY, request == null ? null : request.getVersion());
+    }
+
+    /**
+     * 设为空净（走状态机校验，通常由保洁完成打扫）。
+     *
+     * @param roomId  客房 ID
+     * @param request 请求
+     * @return 更新后客房
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Room markClean(Long roomId, RoomStatusVersionRequest request) {
+        return transitionStatus(roomId, RoomStatus.VACANT_CLEAN, request == null ? null : request.getVersion());
     }
 
     /**

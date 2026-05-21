@@ -10,7 +10,8 @@
 | 需求基线 | [specs/spec.md](./specs/spec.md) v1.0 |
 | 技术方案 | [specs/plan.md](./specs/plan.md) v1.0 |
 | 任务清单 | [specs/tasks.md](./specs/tasks.md) |
-| 最后更新 | 2026-05-21（MOD-ROOM 已完成） |
+| 手动验收 | [docs/MANUAL_ACCEPTANCE.md](./docs/MANUAL_ACCEPTANCE.md) |
+| 最后更新 | 2026-05-21（MOD-ROOM 置脏/置净 + 系统管理增强；权限同步缺陷待修） |
 
 ## 整体架构快照
 
@@ -20,8 +21,8 @@
 
 | 模块 ID | 名称 | 职责 |
 |---------|------|------|
-| MOD-AUTH/RBAC | 认证与权限 | 登录、JWT、角色/敏感权限下放 |
-| MOD-ROOM | 客房房态 | 房型、客房、房态图、维修、强制改态 |
+| MOD-AUTH/RBAC | 认证与权限 | 登录、JWT、用户/角色/直授权限、改密、删用户、恢复默认 |
+| MOD-ROOM | 客房房态 | 房型、客房、房态图、维修、置脏/置净、强制改态 |
 | MOD-RES | 预订 | 手工预订、预排房、释放、可售校验 |
 | MOD-STAY | 入住 | Walk-in、预订入住、换房 |
 | MOD-BILL | 账单退房 | 按晚计价、改价、分笔支付、结账 |
@@ -38,32 +39,37 @@
     手动释放/取消                                              交班汇总收款与待办
 ```
 
-**代码现状**：MOD-INFRA、MOD-AUTH、**MOD-ROOM（房态/房型/客房/维修）** 已完成；下一模块 MOD-RES。
+**代码现状**：MOD-INFRA、MOD-AUTH、MOD-ROOM 已完成；下一模块 **MOD-RES**。
+
+### 近期交付摘要（系统管理增强）
+
+- 用户管理：独立 **修改密码**（`PUT /api/v1/users/{id}/password`）、**删除用户**（`DELETE /api/v1/users/{id}`，禁止删 admin/当前登录账号）
+- 角色权限：**恢复默认**（与 `V2__seed_data.sql` 各角色权限一致）
+- 敏感权限直授：**恢复默认**（清空直授，仅保留角色权限）
 
 ## 里程碑进度
 
 | 里程碑 | 状态 | 说明 |
 |--------|------|------|
-| 需求澄清与 spec.md | 已完成 | spec v1.0 已评审基线 |
-| 技术方案 plan.md | 已完成 | 含 API/表结构/状态机/任务映射 |
-| 项目管理文档 | 已完成 | PROJECT_STATUS、README、tasks.md |
-| 数据库与工程骨架（T-INFRA） | 已完成 | `sql/V1`、`V2`；Spring Boot + Vue3 工程 |
-| 认证与权限（MOD-AUTH） | 已完成 | JWT 登录、用户/角色/直授权限 |
-| 客房房态（MOD-ROOM） | 已完成 | 房态图、房型/客房 CRUD、维修、强制改态 |
-| 后端 MVP 其余模块 | 待开始 | 见 tasks.md §4 起 |
-| 前端 MVP 页面（T-FE） | 进行中 | MOD-ROOM 页面已交付 |
+| 需求澄清与 spec.md | 已完成 | spec v1.0 |
+| 技术方案 plan.md | 已完成 | 含 API/表结构/状态机 |
+| 项目管理文档 | 已完成 | README、PROJECT_STATUS、手动验收清单 |
+| 数据库与工程骨架（T-INFRA） | 已完成 | V1～V5 迁移脚本 |
+| 认证与权限（MOD-AUTH） | 已完成 | JWT、RBAC、改密、恢复默认 |
+| 客房房态（MOD-ROOM） | 已完成 | 房态图、CRUD、维修、置脏/置净、强改 |
+| 后端 MVP 其余模块 | 待开始 | tasks.md §4 起 |
 | 集成测试与验收（T-QA） | 待开始 | TC-01～12 |
 
 ## 风险与阻塞点
 
 | 类型 | 描述 | 缓解措施 |
 |------|------|----------|
-| 进度 | 预订/入住等业务待开发 | 按 tasks.md 从 MOD-RES（§4）执行 |
-| 业务 | OQ-01～05 已在 plan 锁定默认值 | 变更先改 spec.md 再改 plan/tasks |
-| 范围 | 会员/看板/OTA 易渗入 MVP | 以 spec §2.3 排除项为准 |
-| 质量 | 房态并发与超售 | 乐观锁 + RoomAvailabilityService（plan §3） |
-| 协作 | 环境未统一 | README 快速开始落地后补充实际端口与账号 |
+| 缺陷 | **BUG-AUTH-01**：角色/直授 `system:user:manage` 后，目标用户访问「用户管理」仍提示无权限（前端路由守卫；后端接口测试可通过） | **未修复，后期处理**；临时用 `admin` 做用户管理，或变更后让用户重新登录再试 |
+| 进度 | 预订/入住等业务待开发 | 按 tasks.md MOD-RES 执行 |
+| 环境 | 旧库缺列导致 50002 | README 中 V3/V5 迁移说明 |
+| 业务 | OQ-01～05 已在 plan 锁定 | 变更先改 spec |
+| 质量 | 房态并发与超售 | 乐观锁 + 可售校验（后续模块） |
 
 ## 下次更新时间
 
-**2026-05-28**（或完成 T-INFRA-01 / T-AUTH-01 后即时更新）
+**MOD-RES 首批接口落地后**，或 **2026-05-28** 例行同步。

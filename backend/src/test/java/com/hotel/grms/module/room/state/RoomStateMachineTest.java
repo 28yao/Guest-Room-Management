@@ -30,6 +30,18 @@ class RoomStateMachineTest {
     }
 
     @Test
+    void vacantCleanToDirtyAllowed() {
+        assertDoesNotThrow(() -> stateMachine.assertNormalTransition(
+                RoomStatus.VACANT_CLEAN, RoomStatus.DIRTY));
+    }
+
+    @Test
+    void reservedToDirtyAllowed() {
+        assertDoesNotThrow(() -> stateMachine.assertNormalTransition(
+                RoomStatus.RESERVED, RoomStatus.DIRTY));
+    }
+
+    @Test
     void dirtyToVacantCleanAllowed() {
         assertDoesNotThrow(() -> stateMachine.assertNormalTransition(
                 RoomStatus.DIRTY, RoomStatus.VACANT_CLEAN));

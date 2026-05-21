@@ -4,12 +4,14 @@ import com.hotel.grms.common.R;
 import com.hotel.grms.module.auth.dto.PermissionAssignItemDto;
 import com.hotel.grms.module.auth.dto.PermissionIdsRequest;
 import com.hotel.grms.module.auth.dto.UserCreateRequest;
+import com.hotel.grms.module.auth.dto.UserPasswordRequest;
 import com.hotel.grms.module.auth.dto.UserResponse;
 import com.hotel.grms.module.auth.dto.UserUpdateRequest;
 import com.hotel.grms.module.auth.service.PermissionService;
 import com.hotel.grms.module.auth.service.UserService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -75,6 +77,19 @@ public class UserController {
     }
 
     /**
+     * 删除用户。
+     *
+     * @param id 用户 ID
+     * @return 成功
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('system:user:manage')")
+    public R<Void> delete(@PathVariable Long id) {
+        userService.deleteUser(id);
+        return R.ok();
+    }
+
+    /**
      * 查询用户直授权限项。
      *
      * @param id 用户 ID
@@ -97,6 +112,32 @@ public class UserController {
     @PreAuthorize("hasAuthority('system:permission:grant')")
     public R<Void> saveDirectPermissions(@PathVariable Long id, @RequestBody PermissionIdsRequest request) {
         permissionService.saveUserDirectPermissions(id, request.getPermissionIds());
+        return R.ok();
+    }
+
+    /**
+     * 清空用户直授权限，恢复为默认（无直授）。
+     *
+     * @param id 用户 ID
+     * @return 恢复后的权限分配项
+     */
+    @PostMapping("/{id}/permissions/restore-default")
+    @PreAuthorize("hasAuthority('system:permission:grant')")
+    public R<List<PermissionAssignItemDto>> restoreDefaultDirectPermissions(@PathVariable Long id) {
+        return R.ok(permissionService.restoreUserDirectPermissionsToDefault(id));
+    }
+
+    /**
+     * 修改用户登录密码。
+     *
+     * @param id      用户 ID
+     * @param request 新密码
+     * @return 成功
+     */
+    @PutMapping("/{id}/password")
+    @PreAuthorize("hasAuthority('system:user:manage')")
+    public R<Void> changePassword(@PathVariable Long id, @Validated @RequestBody UserPasswordRequest request) {
+        userService.changePassword(id, request.getPassword());
         return R.ok();
     }
 }

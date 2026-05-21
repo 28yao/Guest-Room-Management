@@ -62,12 +62,26 @@ export function endMaintenanceApi(
   return request.post<{ data: RoomVO }>(`/rooms/${id}/maintenance/end`, data)
 }
 
+export function markRoomDirtyApi(id: number, data?: { version?: number }) {
+  return request.post<{ data: RoomVO }>(`/rooms/${id}/status/dirty`, data ?? {})
+}
+
+export function markRoomCleanApi(id: number, data?: { version?: number }) {
+  return request.post<{ data: RoomVO }>(`/rooms/${id}/status/clean`, data ?? {})
+}
+
 export function forceRoomStatusApi(
   id: number,
   data: { targetStatus: string; reason: string; version?: number }
 ) {
   return request.post<{ data: RoomVO }>(`/rooms/${id}/status/force`, data)
 }
+
+/** 可置为脏房的当前状态 */
+export const MARK_DIRTY_FROM = ['VACANT_CLEAN', 'RESERVED', 'OCCUPIED'] as const
+
+/** 可置为空净的当前状态 */
+export const MARK_CLEAN_FROM = ['DIRTY'] as const
 
 export const ROOM_STATUS_LABEL: Record<string, string> = {
   VACANT_CLEAN: '空净',

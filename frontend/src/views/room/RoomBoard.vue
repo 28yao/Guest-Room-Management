@@ -44,6 +44,20 @@
       >
         结束维修
       </el-button>
+      <el-button
+        v-if="auth.hasPermission('room:status:dirty') && canMarkDirty(selected?.status)"
+        type="warning"
+        @click="submitMarkDirty"
+      >
+        设为脏房
+      </el-button>
+      <el-button
+        v-if="auth.hasPermission('room:status:clean') && canMarkClean(selected?.status)"
+        type="success"
+        @click="submitMarkClean"
+      >
+        设为空净
+      </el-button>
       <el-button v-if="auth.hasPermission('room:status:force')" type="danger" @click="openForce">
         强制改态
       </el-button>
@@ -113,6 +127,10 @@ import {
   startMaintenanceApi,
   endMaintenanceApi,
   forceRoomStatusApi,
+  markRoomDirtyApi,
+  markRoomCleanApi,
+  MARK_DIRTY_FROM,
+  MARK_CLEAN_FROM,
   ROOM_STATUS_LABEL,
   ROOM_STATUS_COLOR,
   type RoomBoardItem
@@ -169,6 +187,50 @@ function openEndMaintenance() {
   actionVisible.value = false
   endMaintForm.targetStatus = 'DIRTY'
   endMaintVisible.value = true
+}
+
+function canMarkDirty(status?: string) {
+  return !!status && (MARK_DIRTY_FROM as readonly string[]).includes(status)
+}
+
+function canMarkClean(status?: string) {
+  return !!status && (MARK_CLEAN_FROM as readonly string[]).includes(status)
+}
+
+async function submitMarkDirty() {
+  if (!selected.value) return
+  try {
+    await ElMessageBox.confirm('确认将该客房设为脏房？', '设为脏房', { type: 'warning' })
+  } catch {
+    return
+  }
+  saving.value = true
+  try {
+    await markRoomDirtyApi(selected.value.id, { version: selected.value.version })
+    ElMessage.success('已设为脏房')
+    actionVisible.value = false
+    await load()
+  } finally {
+    saving.value = false
+  }
+}
+
+async function submitMarkClean() {
+  if (!selected.value) return
+  try {
+    await ElMessageBox.confirm('确认打扫完成，设为空净？', '设为空净', { type: 'info' })
+  } catch {
+    return
+  }
+  saving.value = true
+  try {
+    await markRoomCleanApi(selected.value.id, { version: selected.value.version })
+    ElMessage.success('已设为空净')
+    actionVisible.value = false
+    await load()
+  } finally {
+    saving.value = false
+  }
 }
 
 function openForce() {

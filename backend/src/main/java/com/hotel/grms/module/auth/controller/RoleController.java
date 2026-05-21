@@ -10,6 +10,7 @@ import com.hotel.grms.module.auth.service.PermissionService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -81,5 +82,17 @@ public class RoleController {
     public R<Void> savePermissions(@PathVariable Long id, @RequestBody PermissionIdsRequest request) {
         permissionService.saveRolePermissions(id, request.getPermissionIds());
         return R.ok();
+    }
+
+    /**
+     * 将角色权限恢复为系统默认（与种子数据一致）。
+     *
+     * @param id 角色 ID
+     * @return 恢复后的权限分配项
+     */
+    @PostMapping("/{id}/permissions/restore-default")
+    @PreAuthorize("hasAuthority('system:role:manage')")
+    public R<List<PermissionAssignItemDto>> restoreDefaultPermissions(@PathVariable Long id) {
+        return R.ok(permissionService.restoreRolePermissionsToDefault(id));
     }
 }

@@ -21,6 +21,8 @@ INSERT INTO sys_permission (code, name, description) VALUES
 ('room:type:manage', '房型维护', '房型维护'),
 ('room:manage', '客房维护', '客房维护'),
 ('room:status:maintenance', '客房维修', '设维修/结束维修'),
+('room:status:dirty', '设为脏房', '前台将客房置为脏房'),
+('room:status:clean', '设为空净', '保洁将脏房置为空净'),
 ('room:status:force', '强制改房态', '强制改房态'),
 ('reservation:manage', '预订管理', '预订 CRUD、释放'),
 ('stay:checkin', '办理入住', '入住'),
@@ -58,7 +60,7 @@ WHERE r.code = 'ROLE_ADMIN';
 -- 店长权限
 INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT r.id, p.id FROM sys_role r JOIN sys_permission p ON p.code IN (
-    'room:manage', 'room:status:maintenance', 'room:status:force',
+    'room:manage', 'room:status:maintenance', 'room:status:dirty', 'room:status:clean', 'room:status:force',
     'stat:view', 'audit:view', 'shift:force_close', 'reservation:manage',
     'stay:checkin', 'stay:change_room', 'billing:checkout', 'hk:view'
 ) WHERE r.code = 'ROLE_MANAGER';
@@ -68,11 +70,11 @@ INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT r.id, p.id FROM sys_role r JOIN sys_permission p ON p.code IN (
     'reservation:manage', 'stay:checkin', 'stay:change_room',
     'billing:checkout', 'shift:open', 'shift:close',
-    'room:status:maintenance', 'hk:view'
+    'room:status:maintenance', 'room:status:dirty', 'hk:view'
 ) WHERE r.code = 'ROLE_FRONT_DESK';
 
 -- 保洁权限
 INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT r.id, p.id FROM sys_role r JOIN sys_permission p ON p.code IN (
-    'hk:view', 'hk:complete'
+    'hk:view', 'hk:complete', 'room:status:clean'
 ) WHERE r.code = 'ROLE_HOUSEKEEPING';

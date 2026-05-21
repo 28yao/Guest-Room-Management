@@ -71,8 +71,9 @@ public class RoomStateMachine {
 
     private static Map<String, Set<String>> buildNormalTransitions() {
         Map<String, Set<String>> map = new HashMap<String, Set<String>>();
-        map.put(RoomStatus.VACANT_CLEAN, setOf(RoomStatus.RESERVED, RoomStatus.OCCUPIED, RoomStatus.OUT_OF_ORDER));
-        map.put(RoomStatus.RESERVED, setOf(RoomStatus.VACANT_CLEAN, RoomStatus.OCCUPIED));
+        map.put(RoomStatus.VACANT_CLEAN, setOf(RoomStatus.RESERVED, RoomStatus.OCCUPIED,
+                RoomStatus.OUT_OF_ORDER, RoomStatus.DIRTY));
+        map.put(RoomStatus.RESERVED, setOf(RoomStatus.VACANT_CLEAN, RoomStatus.OCCUPIED, RoomStatus.DIRTY));
         map.put(RoomStatus.OCCUPIED, setOf(RoomStatus.DIRTY));
         map.put(RoomStatus.DIRTY, setOf(RoomStatus.VACANT_CLEAN, RoomStatus.OUT_OF_ORDER));
         map.put(RoomStatus.OUT_OF_ORDER, setOf(RoomStatus.DIRTY, RoomStatus.VACANT_CLEAN));

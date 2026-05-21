@@ -1,14 +1,19 @@
 package com.hotel.grms.module.auth.service;
 
+import com.hotel.grms.common.BusinessException;
 import com.hotel.grms.module.auth.dto.PermissionAssignItemDto;
 import com.hotel.grms.module.auth.entity.SysPermission;
+import com.hotel.grms.module.auth.entity.SysRole;
 import com.hotel.grms.module.auth.mapper.SysPermissionMapper;
+import com.hotel.grms.module.auth.mapper.SysRoleMapper;
 import com.hotel.grms.module.auth.mapper.SysRolePermissionMapper;
 import com.hotel.grms.module.auth.mapper.SysUserPermissionMapper;
+import com.hotel.grms.module.auth.support.RoleDefaultPermissions;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -23,13 +28,16 @@ import java.util.Set;
 public class PermissionService {
 
     private final SysPermissionMapper sysPermissionMapper;
+    private final SysRoleMapper sysRoleMapper;
     private final SysRolePermissionMapper sysRolePermissionMapper;
     private final SysUserPermissionMapper sysUserPermissionMapper;
 
     public PermissionService(SysPermissionMapper sysPermissionMapper,
+                               SysRoleMapper sysRoleMapper,
                                SysRolePermissionMapper sysRolePermissionMapper,
                                SysUserPermissionMapper sysUserPermissionMapper) {
         this.sysPermissionMapper = sysPermissionMapper;
+        this.sysRoleMapper = sysRoleMapper;
         this.sysRolePermissionMapper = sysRolePermissionMapper;
         this.sysUserPermissionMapper = sysUserPermissionMapper;
     }
@@ -81,10 +89,10 @@ public class PermissionService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void saveRolePermissions(Long roleId, List<Long> permissionIds) {
-        sysRolePermissionMapper.deleteByRoleId(roleId);
         if (permissionIds == null) {
-            return;
+            throw new BusinessException(40015, "权限列表不能为空");
         }
+        sysRolePermissionMapper.deleteByRoleId(roleId);
         for (Long permissionId : permissionIds) {
             sysRolePermissionMapper.insert(roleId, permissionId);
         }
@@ -98,13 +106,54 @@ public class PermissionService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void saveUserDirectPermissions(Long userId, List<Long> permissionIds) {
-        sysUserPermissionMapper.deleteByUserId(userId);
         if (permissionIds == null) {
-            return;
+            throw new BusinessException(40015, "权限列表不能为空");
         }
+        sysUserPermissionMapper.deleteByUserId(userId);
         for (Long permissionId : permissionIds) {
             sysUserPermissionMapper.insert(userId, permissionId);
         }
+    }
+
+    /**
+     * 将角色权限恢复为 MVP 种子数据中的默认配置。
+     *
+     * @param roleId 角色 ID
+     * @return 恢复后的权限分配项
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public List<PermissionAssignItemDto> restoreRolePermissionsToDefault(Long roleId) {
+        SysRole role = sysRoleMapper.selectById(roleId);
+        if (role == null) {
+            throw new BusinessException(40012, "角色不存在");
+        }
+        List<SysPermission> all = sysPermissionMapper.selectList(null);
+        List<Long> defaultIds = resolveDefaultPermissionIds(role.getCode(), all);
+        saveRolePermissions(roleId, defaultIds);
+        return listRolePermissionItems(roleId);
+    }
+
+    /**
+     * 清空用户直授权限（默认无直授，仅继承角色权限）。
+     *
+     * @param userId 用户 ID
+     * @return 恢复后的权限分配项
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public List<PermissionAssignItemDto> restoreUserDirectPermissionsToDefault(Long userId) {
+        saveUserDirectPermissions(userId, Collections.<Long>emptyList());
+        return listUserDirectPermissionItems(userId);
+    }
+
+    private List<Long> resolveDefaultPermissionIds(String roleCode, List<SysPermission> all) {
+        Set<String> codes = RoleDefaultPermissions.permissionCodesFor(roleCode);
+        List<Long> ids = new ArrayList<Long>();
+        for (SysPermission permission : all) {
+            if (codes == null || codes.contains(permission.getCode())) {
+                ids.add(permission.getId());
+            }
+        }
+        return ids;
     }
 
     private List<PermissionAssignItemDto> buildAssignItems(List<SysPermission> all, Set<Long> assignedSet) {

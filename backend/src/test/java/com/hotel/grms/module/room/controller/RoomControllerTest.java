@@ -81,6 +81,25 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.code").value(40014));
     }
 
+    @Test
+    void markDirtyThenCleanSuccess() throws Exception {
+        Long roomId = createRoom();
+        mockMvc.perform(post("/api/v1/rooms/" + roomId + "/status/dirty")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.status").value("DIRTY"));
+        mockMvc.perform(post("/api/v1/rooms/" + roomId + "/status/clean")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.status").value("VACANT_CLEAN"));
+    }
+
     private Long createRoom() throws Exception {
         long typeId = createRoomType();
         RoomRequest roomRequest = new RoomRequest();

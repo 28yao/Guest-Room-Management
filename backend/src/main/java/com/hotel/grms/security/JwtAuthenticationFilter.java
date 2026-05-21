@@ -35,10 +35,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String token = resolveToken(request);
-        if (StringUtils.hasText(token) && SecurityContextHolder.getContext().getAuthentication() == null) {
+        if (StringUtils.hasText(token)) {
             try {
                 Claims claims = jwtTokenProvider.parseToken(token);
-                Long userId = claims.get("uid", Long.class);
+                Long userId = resolveUserId(claims);
+                if (userId == null) {
+                    throw new IllegalArgumentException("JWT 缺少 uid");
+                }
                 LoginUser loginUser = userDetailsService.loadUserById(userId);
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(loginUser, null, loginUser.getAuthorities());
@@ -49,6 +52,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
         filterChain.doFilter(request, response);
+    }
+
+    private Long resolveUserId(Claims claims) {
+        Object uid = claims.get("uid");
+        if (uid instanceof Number) {
+            return ((Number) uid).longValue();
+        }
+        if (uid instanceof String) {
+            return Long.parseLong((String) uid);
+        }
+        return null;
     }
 
     private String resolveToken(HttpServletRequest request) {

@@ -18,9 +18,18 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="120">
+      <el-table-column label="操作" width="240">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="primary" @click="openPassword(row)">修改密码</el-button>
+          <el-button
+            v-if="canDelete(row)"
+            link
+            type="danger"
+            @click="confirmDelete(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -30,8 +39,8 @@
         <el-form-item v-if="!editingId" label="用户名">
           <el-input v-model="form.username" />
         </el-form-item>
-        <el-form-item label="密码">
-          <el-input v-model="form.password" type="password" :placeholder="editingId ? '留空则不修改' : ''" />
+        <el-form-item v-if="!editingId" label="密码">
+          <el-input v-model="form.password" type="password" show-password />
         </el-form-item>
         <el-form-item label="状态">
           <el-switch v-model="form.statusEnabled" active-text="启用" inactive-text="停用" />
@@ -47,14 +56,40 @@
         <el-button type="primary" :loading="saving" @click="save">保存</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="pwdVisible" title="修改密码" width="440px">
+      <p class="pwd-user">用户：{{ pwdUsername }}</p>
+      <el-form :model="pwdForm" label-width="90px">
+        <el-form-item label="新密码">
+          <el-input v-model="pwdForm.password" type="password" show-password placeholder="6 位及以上" />
+        </el-form-item>
+        <el-form-item label="确认密码">
+          <el-input v-model="pwdForm.confirm" type="password" show-password />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="pwdVisible = false">取消</el-button>
+        <el-button type="primary" :loading="pwdSaving" @click="submitPassword">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
-import { listUsersApi, createUserApi, updateUserApi, type UserVO } from '@/api/user'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  listUsersApi,
+  createUserApi,
+  updateUserApi,
+  changeUserPasswordApi,
+  deleteUserApi,
+  type UserVO
+} from '@/api/user'
 import { listRolesApi, type RoleVO } from '@/api/role'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
 
 const users = ref<UserVO[]>([])
 const roles = ref<RoleVO[]>([])
@@ -62,6 +97,12 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('新增用户')
 const editingId = ref<number | null>(null)
 const saving = ref(false)
+
+const pwdVisible = ref(false)
+const pwdUserId = ref<number | null>(null)
+const pwdUsername = ref('')
+const pwdSaving = ref(false)
+const pwdForm = reactive({ password: '', confirm: '' })
 
 const form = reactive({
   username: '',
@@ -96,13 +137,62 @@ function openEdit(row: UserVO) {
   dialogVisible.value = true
 }
 
+function canDelete(row: UserVO) {
+  if (row.username === 'admin') {
+    return false
+  }
+  return auth.userId == null || row.id !== auth.userId
+}
+
+async function confirmDelete(row: UserVO) {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除用户「${row.username}」？删除后不可恢复。`,
+      '删除用户',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  await deleteUserApi(row.id)
+  ElMessage.success('用户已删除')
+  await load()
+}
+
+function openPassword(row: UserVO) {
+  pwdUserId.value = row.id
+  pwdUsername.value = row.username
+  pwdForm.password = ''
+  pwdForm.confirm = ''
+  pwdVisible.value = true
+}
+
+async function submitPassword() {
+  if (!pwdUserId.value) return
+  if (!pwdForm.password || pwdForm.password.length < 6) {
+    ElMessage.warning('密码至少 6 位')
+    return
+  }
+  if (pwdForm.password !== pwdForm.confirm) {
+    ElMessage.warning('两次输入的密码不一致')
+    return
+  }
+  pwdSaving.value = true
+  try {
+    await changeUserPasswordApi(pwdUserId.value, pwdForm.password)
+    ElMessage.success('密码已更新')
+    pwdVisible.value = false
+  } finally {
+    pwdSaving.value = false
+  }
+}
+
 async function save() {
   saving.value = true
   try {
     const status = form.statusEnabled ? 1 : 0
     if (editingId.value) {
       await updateUserApi(editingId.value, {
-        password: form.password || undefined,
         status,
         roleIds: form.roleIds
       })
@@ -135,5 +225,9 @@ onMounted(load)
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+}
+.pwd-user {
+  margin: 0 0 12px;
+  color: #606266;
 }
 </style>
