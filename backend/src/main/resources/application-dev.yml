@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${GRMS_DB_URL:jdbc:mysql://localhost:3306/grms?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${GRMS_DB_USER:root}
+    password: ${GRMS_DB_PASSWORD:123}
+
+logging:
+  level:
+    com.hotel.grms: debug
+    com.baomidou.mybatisplus: info

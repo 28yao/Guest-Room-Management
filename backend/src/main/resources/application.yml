@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: grms-backend
+  profiles:
+    active: dev
+  config:
+    import: optional:file:./application-local.yml
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+
+jwt:
+  secret: grms-mvp-jwt-secret-change-in-production-2026
+  expiration-ms: 28800000
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto

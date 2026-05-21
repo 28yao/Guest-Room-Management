@@ -1,0 +1,8 @@
+target/
+data/
+application-local.yml
+.idea/
+*.iml
+.classpath
+.project
+.settings/
