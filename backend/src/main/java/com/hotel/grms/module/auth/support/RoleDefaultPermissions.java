@@ -20,12 +20,14 @@ public final class RoleDefaultPermissions {
             "room:manage", "room:status:maintenance", "room:status:dirty", "room:status:clean",
             "room:status:force",
             "stat:view", "audit:view", "shift:force_close", "reservation:manage",
-            "stay:checkin", "stay:change_room", "billing:checkout", "hk:view");
+            "stay:checkin", "stay:change_room", "billing:checkout", "hk:view",
+            "room:board:view", "stay:in_house:view");
 
     private static final Set<String> FRONT_DESK_CODES = codes(
             "reservation:manage", "stay:checkin", "stay:change_room",
             "billing:checkout", "shift:open", "shift:close",
-            "room:status:maintenance", "room:status:dirty", "hk:view");
+            "room:status:maintenance", "room:status:dirty", "room:status:clean", "hk:view",
+            "room:board:view", "stay:in_house:view");
 
     private static final Set<String> HOUSEKEEPING_CODES = codes("hk:view", "hk:complete", "room:status:clean");
 

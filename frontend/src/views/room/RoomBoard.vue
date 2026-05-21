@@ -76,9 +76,17 @@
         <el-table-column label="状态" width="88">
           <template #default="{ row }">{{ orderStatusLabel(row) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="320" fixed="right">
           <template #default="{ row }">
             <el-button v-if="row.editable" link type="primary" @click="openEditOrder(row)">修改</el-button>
+            <el-button
+              v-if="row.orderType === 'RESERVATION' && canCheckIn && isResCheckInable(row.status)"
+              link
+              type="success"
+              @click="openResCheckInFromOrder(row)"
+            >
+              预订入住
+            </el-button>
             <el-button
               v-if="row.orderType === 'STAY' && row.status === 'IN_HOUSE' && canChangeRoom"
               link
@@ -86,6 +94,14 @@
               @click="openChangeRoomFromOrder(row)"
             >
               换房
+            </el-button>
+            <el-button
+              v-if="row.orderType === 'STAY' && row.status === 'IN_HOUSE' && canCheckout"
+              link
+              type="primary"
+              @click="confirmCheckoutFromOrder(row)"
+            >
+              退房
             </el-button>
             <el-button
               v-if="row.orderType === 'STAY' && row.status === 'IN_HOUSE' && canVoidCheckout"
@@ -135,6 +151,23 @@
       <div class="section-title">快捷操作</div>
       <div class="quick-status-row">
         <el-button
+          v-if="canCheckIn && primaryConfirmableRes"
+          type="success"
+          size="large"
+          @click="openResCheckInFromOrder(primaryConfirmableRes)"
+        >
+          预订入住
+        </el-button>
+        <el-button
+          v-if="canCheckout && primaryInHouseOrder"
+          type="primary"
+          size="large"
+          :loading="saving"
+          @click="confirmCheckoutFromOrder(primaryInHouseOrder)"
+        >
+          退房
+        </el-button>
+        <el-button
           v-if="canToggleCleanDirty"
           :type="roomCleanStatus === 'DIRTY' ? 'success' : 'warning'"
           size="large"
@@ -144,7 +177,16 @@
           {{ cleanDirtyToggleLabel }}
         </el-button>
         <span v-else-if="scheduleLoading" class="hint-inline">加载客房状态…</span>
-        <span v-else class="hint-inline">无置脏/置净或强制改态权限，无法切换保洁态</span>
+        <span
+          v-else-if="
+            !canToggleCleanDirty &&
+            !(canCheckout && primaryInHouseOrder) &&
+            !(canCheckIn && primaryConfirmableRes)
+          "
+          class="hint-inline"
+        >
+          无可用快捷操作权限
+        </span>
       </div>
 
       <el-divider />
@@ -283,6 +325,49 @@
       <template #footer>
         <el-button @click="quickResVisible = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="submitQuickReserve">创建并预排本房</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="quickResCheckInVisible" title="预订入住" width="520px">
+      <el-form label-width="100px">
+        <el-form-item label="预订单号">
+          <span>{{ quickResCheckInOrder?.orderNo }}</span>
+        </el-form-item>
+        <el-form-item label="客人">
+          <span>{{ quickResCheckInOrder?.guestName }} / {{ quickResCheckInOrder?.guestPhone }}</span>
+        </el-form-item>
+        <el-form-item label="入住客房">
+          <span>{{ schedule?.roomNo }}（{{ schedule?.roomTypeName }}）</span>
+        </el-form-item>
+        <el-form-item label="入住/离店">
+          <span v-if="quickResCheckInOrder">{{ formatOrderRange(quickResCheckInOrder) }}</span>
+        </el-form-item>
+        <el-form-item label="协议房价">
+          <el-input-number v-model="quickResCheckInForm.agreedDailyRate" :min="0" :precision="2" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="quickResCheckInForm.remark" type="textarea" />
+        </el-form-item>
+        <el-divider content-position="left">入住结账</el-divider>
+        <el-form-item label="应付房费">
+          <span class="charge-total">¥{{ quickResCheckInChargeable }}</span>
+          <span class="hint-inline">（{{ quickResCheckInNights }} 晚）</span>
+        </el-form-item>
+        <el-form-item label="收款" required>
+          <div class="pay-row">
+            <el-select v-model="quickResCheckInPayMethod" style="width: 110px">
+              <el-option label="现金" value="CASH" />
+              <el-option label="微信" value="WECHAT" />
+              <el-option label="支付宝" value="ALIPAY" />
+            </el-select>
+            <el-input-number v-model="quickResCheckInPayAmount" :min="0.01" :precision="2" style="width: 140px" />
+            <el-button link type="primary" @click="quickResCheckInPayAmount = quickResCheckInChargeable">收齐</el-button>
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="quickResCheckInVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="submitQuickResCheckIn">确认入住并结账</el-button>
       </template>
     </el-dialog>
 
@@ -475,13 +560,24 @@ import {
   listAvailabilityApi
 } from '@/api/reservation'
 import { getCurrentShift } from '@/api/shift'
-import { walkInCheckIn, changeRoom, voidCheckout, updateStayRemark, getStay, type StayVO } from '@/api/stay'
+import {
+  walkInCheckIn,
+  checkInFromReservation,
+  changeRoom,
+  voidCheckout,
+  checkoutStay,
+  updateStayRemark,
+  getStay,
+  type StayVO
+} from '@/api/stay'
 import { computeCheckInChargeable, computeRefundPreview, computeStayNights } from '@/utils/billing'
 import type { AvailableRoomVO } from '@/api/reservation'
-import { combineDateTime, DEFAULT_ARRIVAL_TIME, DEFAULT_DEPARTURE_TIME } from '@/utils/datetime'
+import { combineDateTime, DEFAULT_ARRIVAL_TIME, DEFAULT_DEPARTURE_TIME, toIsoDateTime } from '@/utils/datetime'
 
 const auth = useAuthStore()
+const canCheckIn = auth.hasPermission('stay:checkin')
 const canChangeRoom = auth.hasPermission('stay:change_room')
+const canCheckout = auth.hasPermission('billing:checkout')
 const canVoidCheckout = auth.hasPermission('billing:checkout')
 const canManageRes = auth.hasPermission('reservation:manage')
 const items = ref<RoomBoardItem[]>([])
@@ -500,7 +596,9 @@ const stayRemarkVisible = ref(false)
 const stayRemarkOrder = ref<RoomScheduleOrderVO | null>(null)
 const stayRemarkText = ref('')
 const quickResVisible = ref(false)
+const quickResCheckInVisible = ref(false)
 const quickWalkVisible = ref(false)
+const quickResCheckInOrder = ref<RoomScheduleOrderVO | null>(null)
 const maintVisible = ref(false)
 const endMaintVisible = ref(false)
 const forceVisible = ref(false)
@@ -565,6 +663,15 @@ const quickWalkForm = reactive({
 const quickWalkPayMethod = ref('CASH')
 const quickWalkPayAmount = ref(0)
 
+const quickResCheckInForm = reactive({
+  reservationId: undefined as number | undefined,
+  roomId: undefined as number | undefined,
+  agreedDailyRate: undefined as number | undefined,
+  remark: ''
+})
+const quickResCheckInPayMethod = ref('CASH')
+const quickResCheckInPayAmount = ref(0)
+
 const quickWalkNights = computed(() =>
   quickWalkForm.arrivalDate && quickWalkForm.departureDate
     ? computeStayNights(quickWalkForm.arrivalDate, quickWalkForm.departureDate)
@@ -580,6 +687,41 @@ const quickWalkChargeable = computed(() =>
 
 watch(quickWalkChargeable, (v) => {
   quickWalkPayAmount.value = v
+})
+
+const quickResCheckInNights = computed(() => {
+  const row = quickResCheckInOrder.value
+  if (!row?.arrivalDate || !row?.departureDate) return 0
+  return computeStayNights(row.arrivalDate, row.departureDate)
+})
+const quickResCheckInChargeable = computed(() => {
+  const row = quickResCheckInOrder.value
+  if (!row) return 0
+  return computeCheckInChargeable(
+    Number(quickResCheckInForm.agreedDailyRate ?? 0),
+    row.arrivalDate,
+    row.departureDate
+  )
+})
+
+watch(quickResCheckInChargeable, (v) => {
+  if (quickResCheckInVisible.value) {
+    quickResCheckInPayAmount.value = v
+  }
+})
+
+/** 查看日内在住单（用于快捷操作「退房」） */
+const primaryInHouseOrder = computed(() => {
+  const orders = schedule.value?.orders || []
+  const found = orders.find((row) => row.orderType === 'STAY' && row.status === 'IN_HOUSE')
+  return found ?? null
+})
+
+/** 查看日内已确认预订（用于快捷操作「预订入住」） */
+const primaryConfirmableRes = computed(() => {
+  const orders = schedule.value?.orders || []
+  const found = orders.find((row) => row.orderType === 'RESERVATION' && isResCheckInable(row.status))
+  return found ?? null
 })
 
 function occupancyLabel(s: string) {
@@ -717,6 +859,10 @@ function isResCancellable(status: string) {
   return status === 'CONFIRMED' || status === 'PENDING'
 }
 
+function isResCheckInable(status: string) {
+  return status === 'CONFIRMED'
+}
+
 async function requireOpenShift(): Promise<boolean> {
   try {
     const shiftRes = await getCurrentShift()
@@ -769,6 +915,36 @@ async function submitBoardChangeRoom() {
   } catch (e: unknown) {
     const err = e as { response?: { data?: { message?: string } } }
     ElMessage.error(err.response?.data?.message || '换房失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function confirmCheckoutFromOrder(row: RoomScheduleOrderVO) {
+  const roomNo = schedule.value?.roomNo || ''
+  try {
+    await ElMessageBox.confirm(
+      `确认为 ${row.guestName}（${roomNo}）办理退房？客房将置为脏房。房费已在入住时结清。`,
+      '退房',
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  saving.value = true
+  try {
+    await checkoutStay(row.orderId)
+    ElMessage.success('已退房')
+    actionVisible.value = false
+    await load()
+    if (schedule.value) {
+      await loadSchedule()
+    }
+  } catch (e: unknown) {
+    const err = e as { message?: string }
+    if (!err.message) {
+      ElMessage.error('退房失败')
+    }
   } finally {
     saving.value = false
   }
@@ -1003,6 +1179,88 @@ async function submitQuickReserve() {
   } catch (e: unknown) {
     const err = e as { response?: { data?: { message?: string } } }
     ElMessage.error(err.response?.data?.message || '快速预订失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function openResCheckInFromOrder(row: RoomScheduleOrderVO) {
+  if (!schedule.value) return
+  if (!isResCheckInable(row.status)) {
+    ElMessage.warning('仅已确认预订可入住')
+    return
+  }
+  quickResCheckInOrder.value = row
+  quickResCheckInForm.reservationId = row.orderId
+  quickResCheckInForm.roomId = schedule.value.roomId
+  quickResCheckInForm.remark = row.remark || ''
+  quickResCheckInForm.agreedDailyRate =
+    row.agreedDailyRate != null
+      ? Number(row.agreedDailyRate)
+      : schedule.value.rackRate != null
+        ? Number(schedule.value.rackRate)
+        : undefined
+  quickResCheckInPayMethod.value = 'CASH'
+  quickResCheckInPayAmount.value = quickResCheckInChargeable.value
+  try {
+    const res = await listAvailabilityApi({
+      roomTypeId: schedule.value.roomTypeId,
+      arrival: row.arrivalDate,
+      departure: row.departureDate,
+      arrivalAt: toIsoDateTime(row.arrivalDate, row.arrivalAt, DEFAULT_ARRIVAL_TIME),
+      departureAt: toIsoDateTime(row.departureDate, row.departureAt, DEFAULT_DEPARTURE_TIME),
+      excludeReservationId: row.orderId
+    })
+    const rooms = res.data.data || []
+    if (!rooms.some((r) => r.roomId === schedule.value!.roomId)) {
+      ElMessage.warning('本房当前不可入住，请至入住页另选客房')
+      return
+    }
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    ElMessage.error(err.response?.data?.message || '校验可售房失败')
+    return
+  }
+  quickResCheckInVisible.value = true
+}
+
+async function submitQuickResCheckIn() {
+  if (!schedule.value || !quickResCheckInOrder.value) return
+  if (!quickResCheckInForm.reservationId || !quickResCheckInForm.roomId) {
+    ElMessage.warning('预订或客房信息不完整')
+    return
+  }
+  try {
+    const shiftRes = await getCurrentShift()
+    if (!shiftRes.data.data) {
+      ElMessage.warning('请先开班后再办理入住')
+      return
+    }
+  } catch {
+    ElMessage.warning('请先开班后再办理入住')
+    return
+  }
+  if (Math.abs(quickResCheckInPayAmount.value - quickResCheckInChargeable.value) > 0.009) {
+    ElMessage.warning('收款金额须等于应付房费')
+    return
+  }
+  saving.value = true
+  try {
+    await checkInFromReservation({
+      reservationId: quickResCheckInForm.reservationId,
+      roomId: quickResCheckInForm.roomId,
+      agreedDailyRate: quickResCheckInForm.agreedDailyRate,
+      remark: quickResCheckInForm.remark,
+      payments: [{ method: quickResCheckInPayMethod.value, amount: quickResCheckInPayAmount.value }]
+    })
+    ElMessage.success('预订入住成功')
+    quickResCheckInVisible.value = false
+    actionVisible.value = false
+    await load()
+    await loadFloors()
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    ElMessage.error(err.response?.data?.message || '入住失败')
   } finally {
     saving.value = false
   }

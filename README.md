@@ -17,15 +17,16 @@
 
 | 模块 | 状态 | 说明 |
 |------|------|------|
-| MOD-INFRA | 已完成 | 工程骨架、SQL、健康检查 |
+| MOD-INFRA | 已完成 | 工程骨架、SQL V1～V14、健康检查 |
 | MOD-AUTH | 已完成 | 登录/JWT/RBAC；用户改密/删除、角色/直授 **恢复默认** |
 | MOD-ROOM | 已完成 | 房态图双维标签；房型/客房；维修；净/脏切换（V14）；强制改态 |
-| MOD-RES | 已完成 | 预订 CRUD、预排房、释放/取消、可售查询 |
-| MOD-STAY | 已完成（增强） | Walk-in、预订入住、在住列表（姓名查询）、换房、备注、退订退款；房态图快捷换房/退订/一键置态 |
-| MOD-BILL | 已完成（首批） | 入住时结账、改价；退房仅释放房间 |
-| MOD-HK 及以后 | 待开发 | 见 [tasks.md](./specs/tasks.md) §7 起 |
+| MOD-RES | 已完成 | 预订 CRUD、预排房、释放/取消、退订退款（V11）、可售查询 |
+| MOD-STAY | 已完成 | 办理入住、在住管理；房态图快速预订/Walk-in/**预订入住**/退房/退款/换房 |
+| MOD-BILL | 已完成（首批） | 入住时结清房费；改价/支付；退房仅释放客房 |
+| MOD-HK | 进行中 | 退房已生成 `hk_task`；保洁列表与完成 API 待开发 |
+| MOD-SHIFT 及以后 | 部分/待开发 | 开班已有；结班见 [tasks.md](./specs/tasks.md) §8 起 |
 
-**默认管理员**：`admin` / `admin123`（`sql/V2__seed_data.sql`）
+**默认账号**（`sql/V2__seed_data.sql`）：`admin` / `admin123`（管理员）；`hk01` / `admin123`（保洁，仅保洁任务）
 
 ## 项目目录结构
 
@@ -54,7 +55,9 @@ Guest Room Management/
 │   ├── V11__payment_refund.sql       # 支付流水 folio 可空（预订退款）
 │   ├── V12__front_desk_room_clean.sql   # 前台置净权限
 │   ├── V13__restore_room_clean_dirty_perms.sql  # 恢复净/脏切换权限
-│   └── V14__room_clean_status.sql    # 保洁态 clean_status（房态图必跑，执行后重启后端）
+│   ├── V14__room_clean_status.sql    # 保洁态 clean_status（房态图必跑，执行后重启后端）
+│   ├── V15__cleanup_stay_data.sql    # 可选：开发库清理在住/账单/保洁任务（勿用于生产）
+│   └── V16__room_board_in_house_perms.sql  # 房态图/在住查看权（保洁不授予）
 ├── backend/
 └── frontend/
 ```
@@ -88,6 +91,7 @@ mysql -u root -p grms < sql/V11__payment_refund.sql
 mysql -u root -p grms < sql/V12__front_desk_room_clean.sql
 mysql -u root -p grms < sql/V13__restore_room_clean_dirty_perms.sql
 mysql -u root -p grms < sql/V14__room_clean_status.sql
+mysql -u root -p grms < sql/V16__room_board_in_house_perms.sql
 # 房态图演示数据（可选）：
 mysql -u root -p grms < sql/V4__room_seed.sql
 ```
@@ -112,6 +116,8 @@ Get-Content sql/V14__room_clean_status.sql -Raw | mysql -u root -p你的密码 g
 | **`room.clean_status`（房态图整页报错）** | **V14**（执行后重启后端） |
 
 已执行 V3～V10 仍报「表结构不一致」时，优先检查并执行 **V14**；或按上表从 README 顺序补跑 V11～V14。
+
+**开发库重置在住数据**（可选，确认非生产库）：`sql/V15__cleanup_stay_data.sql` 清空在住/账单/保洁任务并恢复空房占用态。
 
 ### 后端
 
@@ -146,21 +152,24 @@ npm run dev
 
 | 菜单/页面 | 路径 | 权限要点 |
 |-----------|------|----------|
-| 房态图 | `/rooms/board` | 登录即可；点击客房查订单/快速预订入住；按 **查看日期** 看预抵/预离 |
+| 房态图 | `/rooms/board` | `room:board:view`（**保洁角色无**）；日程内预订入住/退房等 |
 | 客房管理 | `/rooms` | `room:manage` |
 | 房型管理 | `/room-types` | `room:type:manage` |
 | 用户管理 | `/system/users` | `system:user:manage`；含 **修改密码**、**删除用户** |
 | 角色权限 | `/system/roles` | `system:role:manage`；含 **恢复默认** |
 | 敏感权限直授 | `/system/user-permissions` | `system:permission:grant`；含 **恢复默认** |
-| 办理入住 | `/check-in` | `stay:checkin`；**入住时结清房费** |
-| 在住管理 | `/in-house` | 登录；换房、**退款**、**退房**（仅释放客房） |
+| 办理入住 | `/check-in` | `stay:checkin`；Walk-in / 预订入住 Tab，**入住时结清房费** |
+| 在住管理 | `/in-house` | `stay:in_house:view`（保洁角色无此权限） |
+| 预订管理 | `/reservations` | `reservation:manage` |
+| 保洁任务 | `/housekeeping` | `hk:view`；`hk:complete` 可完成打扫 |
 
 ### 验证步骤（当前 MVP）
 
 1. 登录 `admin` / `admin123`，确认进入房态图。  
 2. 系统管理：用户 **修改密码**、**删除**；角色/直授 **恢复默认**（见 [手动验收清单](./docs/MANUAL_ACCEPTANCE.md)）。  
-3. 房型/客房 CRUD，房态图筛选、维修、置脏/置净、强制改态。  
-4. **入住时结账** → 在住 **退房**（释放客房）；提前结束用「**退款**」（见 [手动验收清单](./docs/MANUAL_ACCEPTANCE.md)）。
+3. 房型/客房 CRUD，房态图筛选、维修、净/脏切换、强制改态。  
+4. **开班** → 办理入住或房态图 Walk-in/预订入住（收款=应付）→ 在住 **退房** 或 **退款**。  
+5. 详见 [手动验收清单](./docs/MANUAL_ACCEPTANCE.md)（含 MOD-BILL）。
 
 ## 贡献规范
 

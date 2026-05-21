@@ -19,6 +19,8 @@ INSERT INTO sys_permission (id, code, name) VALUES (18, 'shift:close', '结班')
 INSERT INTO sys_permission (id, code, name) VALUES (19, 'shift:force_close', '强制结班');
 INSERT INTO sys_permission (id, code, name) VALUES (20, 'stat:view', '经营统计');
 INSERT INTO sys_permission (id, code, name) VALUES (21, 'audit:view', '审计查询');
+INSERT INTO sys_permission (id, code, name) VALUES (22, 'room:board:view', '查看房态图');
+INSERT INTO sys_permission (id, code, name) VALUES (23, 'stay:in_house:view', '在住管理');
 
 INSERT INTO sys_role (id, code, name) VALUES (1, 'ROLE_ADMIN', '系统管理员');
 INSERT INTO sys_role (id, code, name) VALUES (2, 'ROLE_MANAGER', '店长');

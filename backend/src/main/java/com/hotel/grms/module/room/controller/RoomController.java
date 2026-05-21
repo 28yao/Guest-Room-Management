@@ -64,6 +64,7 @@ public class RoomController {
      * @return 房态图项
      */
     @GetMapping("/board")
+    @PreAuthorize("hasAuthority('room:board:view')")
     public R<List<RoomBoardItemDto>> board(
             @RequestParam(required = false) Integer floorNo,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
@@ -76,6 +77,7 @@ public class RoomController {
      * @return 楼层号列表
      */
     @GetMapping("/floors")
+    @PreAuthorize("hasAnyAuthority('room:board:view', 'hk:view')")
     public R<List<Integer>> floors() {
         return R.ok(roomService.listFloors());
     }
@@ -88,6 +90,7 @@ public class RoomController {
      * @return 日程
      */
     @GetMapping("/{id}/schedule")
+    @PreAuthorize("hasAuthority('room:board:view')")
     public R<RoomScheduleDto> schedule(
             @PathVariable Long id,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate) {

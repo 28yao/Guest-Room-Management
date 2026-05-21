@@ -35,7 +35,9 @@ INSERT INTO sys_permission (code, name, description) VALUES
 ('shift:close', '结班', '结班'),
 ('shift:force_close', '强制结班', '有待办仍结班'),
 ('stat:view', '经营统计', '出租率/营收'),
-('audit:view', '审计查询', '审计查询');
+('audit:view', '审计查询', '审计查询'),
+('room:board:view', '查看房态图', '房态图、客房日程、楼层筛选'),
+('stay:in_house:view', '在住管理', '在住列表查询');
 
 -- 角色
 INSERT INTO sys_role (code, name, description) VALUES
@@ -52,6 +54,14 @@ INSERT INTO sys_user_role (user_id, role_id)
 SELECT u.id, r.id FROM sys_user u, sys_role r
 WHERE u.username = 'admin' AND r.code = 'ROLE_ADMIN';
 
+-- 保洁演示账号 hk01 / admin123（无房态图、在住管理权限）
+INSERT INTO sys_user (username, password, status) VALUES
+('hk01', '$2a$10$6am6wYerYdF3L6tzBP7LNeVP13IkCRu7OMClrkSfpOaO/KgQKw4/C', 1);
+
+INSERT INTO sys_user_role (user_id, role_id)
+SELECT u.id, r.id FROM sys_user u, sys_role r
+WHERE u.username = 'hk01' AND r.code = 'ROLE_HOUSEKEEPING';
+
 -- 角色-权限：管理员拥有全部权限
 INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT r.id, p.id FROM sys_role r CROSS JOIN sys_permission p
@@ -62,7 +72,8 @@ INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT r.id, p.id FROM sys_role r JOIN sys_permission p ON p.code IN (
     'room:manage', 'room:status:maintenance', 'room:status:dirty', 'room:status:clean', 'room:status:force',
     'stat:view', 'audit:view', 'shift:force_close', 'reservation:manage',
-    'stay:checkin', 'stay:change_room', 'billing:checkout', 'hk:view'
+    'stay:checkin', 'stay:change_room', 'billing:checkout', 'hk:view',
+    'room:board:view', 'stay:in_house:view'
 ) WHERE r.code = 'ROLE_MANAGER';
 
 -- 前台权限
@@ -70,7 +81,8 @@ INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT r.id, p.id FROM sys_role r JOIN sys_permission p ON p.code IN (
     'reservation:manage', 'stay:checkin', 'stay:change_room',
     'billing:checkout', 'shift:open', 'shift:close',
-    'room:status:maintenance', 'room:status:dirty', 'room:status:clean', 'hk:view'
+    'room:status:maintenance', 'room:status:dirty', 'room:status:clean', 'hk:view',
+    'room:board:view', 'stay:in_house:view'
 ) WHERE r.code = 'ROLE_FRONT_DESK';
 
 -- 保洁权限

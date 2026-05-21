@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getToken } from '@/api/request'
 import { useAuthStore } from '@/stores/auth'
+import { resolveDefaultHomePath } from '@/utils/homeRoute'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -13,7 +14,10 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
-    redirect: '/rooms/board',
+    redirect: () => {
+      const auth = useAuthStore()
+      return resolveDefaultHomePath(auth.permissions)
+    },
     children: [
       {
         path: 'home',
@@ -25,7 +29,7 @@ const routes: RouteRecordRaw[] = [
         path: 'rooms/board',
         name: 'RoomBoard',
         component: () => import('@/views/room/RoomBoard.vue'),
-        meta: { title: '房态图' }
+        meta: { title: '房态图', permissions: ['room:board:view'] }
       },
       {
         path: 'room-types',
@@ -55,7 +59,13 @@ const routes: RouteRecordRaw[] = [
         path: 'in-house',
         name: 'InHouseList',
         component: () => import('@/views/stay/InHouseList.vue'),
-        meta: { title: '在住管理' }
+        meta: { title: '在住管理', permissions: ['stay:in_house:view'] }
+      },
+      {
+        path: 'housekeeping',
+        name: 'HkTaskList',
+        component: () => import('@/views/hk/HkTaskList.vue'),
+        meta: { title: '保洁任务', permissions: ['hk:view'] }
       },
       {
         path: 'system/users',
@@ -104,7 +114,7 @@ router.beforeEach(async (to, _from, next) => {
   const required = to.meta.permissions as string[] | undefined
   if (required && required.length > 0 && !auth.hasAnyPermission(required)) {
     ElMessage.warning('无权限访问该页面')
-    next({ path: '/home' })
+    next({ path: resolveDefaultHomePath(auth.permissions) })
     return
   }
   next()

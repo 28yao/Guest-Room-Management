@@ -10,8 +10,10 @@ import com.hotel.grms.module.room.dto.RoomStatusVersionRequest;
 import com.hotel.grms.module.room.dto.RoomResponse;
 import com.hotel.grms.module.room.entity.Room;
 import com.hotel.grms.module.room.entity.RoomType;
+import com.hotel.grms.module.hk.service.HousekeepingService;
 import com.hotel.grms.module.room.mapper.RoomMapper;
 import com.hotel.grms.module.room.state.RoomStateMachine;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,11 +35,14 @@ public class RoomService {
     private final RoomMapper roomMapper;
     private final RoomTypeService roomTypeService;
     private final RoomStateMachine roomStateMachine;
+    private final HousekeepingService housekeepingService;
 
-    public RoomService(RoomMapper roomMapper, RoomTypeService roomTypeService, RoomStateMachine roomStateMachine) {
+    public RoomService(RoomMapper roomMapper, RoomTypeService roomTypeService, RoomStateMachine roomStateMachine,
+                       @Lazy HousekeepingService housekeepingService) {
         this.roomMapper = roomMapper;
         this.roomTypeService = roomTypeService;
         this.roomStateMachine = roomStateMachine;
+        this.housekeepingService = housekeepingService;
     }
 
     /**
@@ -154,7 +159,9 @@ public class RoomService {
      */
     @Transactional(rollbackFor = Exception.class)
     public Room markDirty(Long roomId, RoomStatusVersionRequest request) {
-        return updateCleanStatus(roomId, RoomCleanStatus.DIRTY, request == null ? null : request.getVersion());
+        Room room = updateCleanStatus(roomId, RoomCleanStatus.DIRTY, request == null ? null : request.getVersion());
+        housekeepingService.createTaskOnDirty(roomId);
+        return room;
     }
 
     /**

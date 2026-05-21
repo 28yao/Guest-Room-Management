@@ -311,6 +311,8 @@ effectiveDailyRate = stay_order.agreed_daily_rate ?? room_type.rack_rate
 | `room:status:dirty` | 设为脏房 | FRONT, MANAGER |
 | `room:status:clean` | 设为空净 | HOUSEKEEPING, MANAGER |
 | `room:status:force` | 强制改房态 | MANAGER（可下放） |
+| `room:board:view` | 房态图、客房日程 | FRONT, MANAGER（**不含 HK**） |
+| `stay:in_house:view` | 在住列表 | FRONT, MANAGER（**不含 HK**） |
 | `reservation:manage` | 预订 CRUD、释放 | FRONT |
 | `stay:checkin` | 入住 | FRONT |
 | `stay:change_room` | 换房 | FRONT |
@@ -583,10 +585,12 @@ CREATE TABLE shift_session (
 
 ### 7.2 房态图组件 `RoomBoard.vue`
 
-- 格子：房号、**展示态**色块、标签（预抵/预离）
-- 筛选：楼层（下拉来自 `/rooms/floors`，不受当前楼层筛选限制）、**查看日期**（默认今天）
+- 格子：房号、**展示态**色块、标签（预抵/预离）；**占用态 + 保洁态** 双标签（V14）
+- 筛选：楼层（下拉来自 `/rooms/floors`）、**查看日期**（默认今天）
+- 点击客房：日程订单列表；行内 **预订入住** / **退款** / **换房** / **退房**（权限控制）
+- 快捷操作：**退房**（在住）、净/脏一键切换
+- 查看日无占用：**快速预订**、**快速 Walk-in**（`payments[]` 收齐应付）
 - 提示：展示态按查看日与预订时刻；操作以库内实时状态为准
-- 点击：快捷菜单依 **actualStatus** 与权限显示
 
 ---
 
@@ -668,7 +672,7 @@ CREATE TABLE shift_session (
 | TC-04 | 换房 | 整段房费按新房型重算 | BR-06 |
 | TC-05 | 无权限改价 | 403 | BR-05 |
 | TC-06 | 授权改价 | 成功+审计 | BR-05 |
-| TC-07 | 退房分笔结清 | DIRTY+hk_task | §13.2 |
+| TC-07 | 入住结清后退房释放 | 占用空+保洁脏+hk_task | §13.2、BR-07 |
 | TC-08 | 保洁完成 | VACANT_CLEAN | BR-10 |
 | TC-09 | 手动释放预订 | 房态释放+日志 | BR-03 |
 | TC-10 | 交班单 | 收款汇总+待办 | §11.1 |

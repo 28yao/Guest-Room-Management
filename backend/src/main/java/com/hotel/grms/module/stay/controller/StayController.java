@@ -76,6 +76,7 @@ public class StayController {
      * @return 列表
      */
     @GetMapping("/in-house")
+    @PreAuthorize("hasAuthority('stay:in_house:view')")
     public R<List<StayResponse>> inHouse(@RequestParam(required = false) String guestName) {
         return R.ok(stayService.listInHouse(guestName));
     }

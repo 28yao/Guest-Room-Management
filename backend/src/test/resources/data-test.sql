@@ -1,5 +1,6 @@
 INSERT INTO sys_role (id, code, name) VALUES (1, 'ROLE_ADMIN', '系统管理员');
 INSERT INTO sys_role (id, code, name) VALUES (2, 'ROLE_FRONT_DESK', '前台');
+INSERT INTO sys_role (id, code, name) VALUES (3, 'ROLE_HOUSEKEEPING', '保洁');
 
 INSERT INTO sys_permission (id, code, name) VALUES (1, 'system:user:manage', '用户管理');
 INSERT INTO sys_permission (id, code, name) VALUES (2, 'system:role:manage', '角色权限配置');
@@ -16,6 +17,10 @@ INSERT INTO sys_permission (id, code, name) VALUES (12, 'shift:open', '开班');
 INSERT INTO sys_permission (id, code, name) VALUES (13, 'shift:close', '结班');
 INSERT INTO sys_permission (id, code, name) VALUES (14, 'billing:price:adjust', '改价');
 INSERT INTO sys_permission (id, code, name) VALUES (15, 'billing:checkout', '退房结账');
+INSERT INTO sys_permission (id, code, name) VALUES (16, 'hk:view', '查看保洁任务');
+INSERT INTO sys_permission (id, code, name) VALUES (17, 'hk:complete', '完成保洁');
+INSERT INTO sys_permission (id, code, name) VALUES (18, 'room:board:view', '查看房态图');
+INSERT INTO sys_permission (id, code, name) VALUES (19, 'stay:in_house:view', '在住管理');
 
 INSERT INTO sys_user (id, username, password, status) VALUES
 (1, 'admin', '$2a$10$6am6wYerYdF3L6tzBP7LNeVP13IkCRu7OMClrkSfpOaO/KgQKw4/C', 1);
@@ -34,3 +39,13 @@ INSERT INTO sys_role_permission VALUES (2, 11);
 INSERT INTO sys_role_permission VALUES (2, 12);
 INSERT INTO sys_role_permission VALUES (2, 13);
 INSERT INTO sys_role_permission VALUES (2, 15);
+INSERT INTO sys_role_permission VALUES (2, 18);
+INSERT INTO sys_role_permission VALUES (2, 19);
+
+INSERT INTO sys_role_permission VALUES (3, 9);
+INSERT INTO sys_role_permission VALUES (3, 16);
+INSERT INTO sys_role_permission VALUES (3, 17);
+
+INSERT INTO sys_user (id, username, password, status) VALUES
+(3, 'hk01', '$2a$10$6am6wYerYdF3L6tzBP7LNeVP13IkCRu7OMClrkSfpOaO/KgQKw4/C', 1);
+INSERT INTO sys_user_role VALUES (3, 3);

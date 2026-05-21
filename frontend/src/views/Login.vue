@@ -29,6 +29,7 @@ import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
+import { resolveDefaultHomePath } from '@/utils/homeRoute'
 
 const router = useRouter()
 const route = useRoute()
@@ -52,7 +53,8 @@ async function onSubmit() {
   loading.value = true
   try {
     await auth.login(form.username, form.password)
-    const redirect = (route.query.redirect as string) || '/home'
+    const fallback = resolveDefaultHomePath(auth.permissions)
+    const redirect = (route.query.redirect as string) || fallback
     router.replace(redirect)
   } finally {
     loading.value = false

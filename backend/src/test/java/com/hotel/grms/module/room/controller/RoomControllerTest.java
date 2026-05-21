@@ -16,10 +16,13 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import com.hotel.grms.module.reservation.dto.AssignRoomRequest;
 import com.hotel.grms.module.reservation.dto.ReservationCreateRequest;
+import com.hotel.grms.module.billing.dto.CheckInPaymentItem;
 import com.hotel.grms.module.stay.dto.WalkInCheckInRequest;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -118,6 +121,12 @@ class RoomControllerTest {
         checkIn.setArrivalDate(LocalDate.of(2026, 5, 22));
         checkIn.setDepartureDate(LocalDate.of(2026, 5, 23));
         checkIn.setAgreedDailyRate(new BigDecimal("300"));
+        List<CheckInPaymentItem> payments = new ArrayList<CheckInPaymentItem>();
+        CheckInPaymentItem pay = new CheckInPaymentItem();
+        pay.setMethod("CASH");
+        pay.setAmount(new BigDecimal("300"));
+        payments.add(pay);
+        checkIn.setPayments(payments);
         mockMvc.perform(post("/api/v1/stays/walk-in")
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
