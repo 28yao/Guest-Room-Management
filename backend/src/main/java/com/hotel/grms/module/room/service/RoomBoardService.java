@@ -55,8 +55,8 @@ public class RoomBoardService {
         item.setRoomTypeId(row.getRoomTypeId());
         item.setRoomTypeName(row.getRoomTypeName());
         item.setFloorNo(row.getFloorNo());
-        item.setActualStatus(row.getStatus());
         item.setStatus(resolveDisplayStatus(row));
+        item.setActualStatus(row.getStatus());
         item.setVersion(row.getVersion());
         item.setRackRate(row.getRackRate());
         item.setDailyTags(buildTags(row));

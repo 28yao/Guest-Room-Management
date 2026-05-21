@@ -469,6 +469,7 @@ CREATE TABLE shift_session (
 | API-ROOM-02 | CRUD | `/rooms` | `room:manage` | §5.2 |
 | API-ROOM-03 | GET | `/rooms/board` | 登录 | §5.3；`status` 为展示态，`actualStatus` 为库内态；`daily_tags`；`date` 默认当天 |
 | API-ROOM-03b | GET | `/rooms/floors` | 登录 | 全部楼层列表（房态图筛选用） |
+| API-ROOM-03c | GET | `/rooms/{id}/schedule?fromDate=` | 登录 | 客房日程：当前及未来预订/在住；`occupiedOnViewDate` |
 | API-ROOM-04 | POST | `/rooms/{id}/maintenance` | `room:status:maintenance` | BR-11 |
 | API-ROOM-05 | POST | `/rooms/{id}/maintenance/end` | 同上 | §5.2 |
 | API-ROOM-06 | POST | `/rooms/{id}/status/dirty` | `room:status:dirty` | 前台置脏（状态机） |

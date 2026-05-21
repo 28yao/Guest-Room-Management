@@ -168,6 +168,26 @@ class RoomControllerTest {
     }
 
     @Test
+    void roomScheduleReturnsFutureOrders() throws Exception {
+        Long typeId = createRoomType();
+        Long roomId = createRoom(typeId, "810");
+        Long reservationId = createReservation(typeId, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 2));
+        AssignRoomRequest assign = new AssignRoomRequest();
+        assign.setRoomId(roomId);
+        mockMvc.perform(post("/api/v1/reservations/" + reservationId + "/assign-room")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(assign)))
+                .andExpect(jsonPath("$.code").value(0));
+        mockMvc.perform(get("/api/v1/rooms/" + roomId + "/schedule")
+                        .param("fromDate", "2026-05-21")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.roomId").value(roomId.intValue()))
+                .andExpect(jsonPath("$.data.orders[0].orderType").value("RESERVATION"));
+    }
+
+    @Test
     void listFloorsReturnsAll() throws Exception {
         Long typeId = createRoomType();
         createRoom(typeId, "806", 2);

@@ -42,4 +42,14 @@ class ReservationTimePolicyTest {
         stay.setDepartureDate(LocalDate.of(2026, 5, 24));
         assertTrue(ReservationTimePolicy.effectiveStayEnd(stay).isEqual(LocalDateTime.of(2026, 5, 24, 12, 0)));
     }
+
+    @Test
+    void stayOccupiesViewDateWhenCheckInBeforeArrivalDate() {
+        StayOrder stay = new StayOrder();
+        stay.setArrivalDate(LocalDate.of(2026, 5, 22));
+        stay.setDepartureDate(LocalDate.of(2026, 5, 24));
+        stay.setCheckInAt(LocalDateTime.of(2026, 5, 21, 20, 59));
+        assertTrue(ReservationTimePolicy.stayOccupiesViewDate(stay, LocalDate.of(2026, 5, 21)));
+        assertFalse(ReservationTimePolicy.stayOccupiesViewDate(stay, LocalDate.of(2026, 5, 25)));
+    }
 }

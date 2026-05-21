@@ -7,10 +7,12 @@ import com.hotel.grms.module.room.dto.MaintenanceStartRequest;
 import com.hotel.grms.module.room.dto.RoomBoardItemDto;
 import com.hotel.grms.module.room.dto.RoomRequest;
 import com.hotel.grms.module.room.dto.RoomResponse;
+import com.hotel.grms.module.room.dto.RoomScheduleDto;
 import com.hotel.grms.module.room.dto.RoomStatusVersionRequest;
 import com.hotel.grms.module.room.entity.Room;
 import com.hotel.grms.module.room.service.RoomBoardService;
 import com.hotel.grms.module.room.service.RoomMaintenanceService;
+import com.hotel.grms.module.room.service.RoomScheduleService;
 import com.hotel.grms.module.room.service.RoomService;
 import com.hotel.grms.module.room.service.RoomTypeService;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -40,13 +42,16 @@ public class RoomController {
 
     private final RoomService roomService;
     private final RoomBoardService roomBoardService;
+    private final RoomScheduleService roomScheduleService;
     private final RoomMaintenanceService roomMaintenanceService;
     private final RoomTypeService roomTypeService;
 
     public RoomController(RoomService roomService, RoomBoardService roomBoardService,
+                          RoomScheduleService roomScheduleService,
                           RoomMaintenanceService roomMaintenanceService, RoomTypeService roomTypeService) {
         this.roomService = roomService;
         this.roomBoardService = roomBoardService;
+        this.roomScheduleService = roomScheduleService;
         this.roomMaintenanceService = roomMaintenanceService;
         this.roomTypeService = roomTypeService;
     }
@@ -73,6 +78,20 @@ public class RoomController {
     @GetMapping("/floors")
     public R<List<Integer>> floors() {
         return R.ok(roomService.listFloors());
+    }
+
+    /**
+     * 客房日程：自查看日起的预订/在住订单。
+     *
+     * @param id       客房 ID
+     * @param fromDate 查看日期，默认当天
+     * @return 日程
+     */
+    @GetMapping("/{id}/schedule")
+    public R<RoomScheduleDto> schedule(
+            @PathVariable Long id,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate) {
+        return R.ok(roomScheduleService.loadSchedule(id, fromDate));
     }
 
     /**

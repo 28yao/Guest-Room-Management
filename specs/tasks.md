@@ -177,6 +177,7 @@
 | T-ROOM-FE-06 | 房态图「设为脏房/设为空净」按钮 | [依赖: T-ROOM-CTL-07,08] | 1h | 按权限与当前态显示 | 已完成 |
 | T-ROOM-FE-07 | 房态图指定日期查看（日期选择器） | [依赖: T-ROOM-CTL-03a] | 1h | 切换日期后预抵/预离标签随之变化 | 已完成 |
 | T-ROOM-FE-08 | 楼层下拉独立数据源；展示态/库内态 | [依赖: T-ROOM-CTL-03b, T-ROOM-SVC-02a] | 1h | 筛选后仍可换楼层；过期预订不显示预订色 | 已完成 |
+| T-ROOM-FE-09 | 房态图点击：订单列表+编辑+快速预订/入住 | [依赖: T-ROOM-CTL-03c, T-RES-FE-01, T-STAY-FE-01] | 5h | 查看日无占用可快速办理 | 已完成 |
 
 ### Controller 层任务
 
@@ -192,6 +193,7 @@
 | T-ROOM-CTL-06 | `POST /rooms/{id}/status/force` | [依赖: T-ROOM-SVC-04] | 1h | 需 `room:status:force` | 已完成 |
 | T-ROOM-CTL-07 | `POST /rooms/{id}/status/dirty` | [依赖: T-ROOM-SVC-04] | 1h | 需 `room:status:dirty` | 已完成 |
 | T-ROOM-CTL-08 | `POST /rooms/{id}/status/clean` | [依赖: T-ROOM-SVC-04] | 1h | 需 `room:status:clean` | 已完成 |
+| T-ROOM-CTL-03c | `GET /rooms/{id}/schedule` | [依赖: T-ROOM-SVC-02c] | 1h | 含 occupiedOnViewDate | 已完成 |
 
 ### Service 层任务
 
@@ -205,6 +207,7 @@
 | T-STAY-FE-04 | Walk-in 入住/离店时刻可编辑（默认 18:00/12:00） | [依赖: T-STAY-FE-01] | 1h | 与可售查询一致 | 已完成 |
 | T-ROOM-SVC-03 | `RoomMaintenanceService`：维修开始/结束 | [依赖: T-ROOM-SVC-04] | 3h | 写 maintenance_log | 已完成 |
 | T-ROOM-SVC-04 | `RoomStateMachine` 状态转换与 assert | [依赖: T-ROOM-SVC-01] | 4h | 非法转换抛 40001 | 已完成 |
+| T-ROOM-SVC-02c | `RoomScheduleService` 客房日程（预订+在住） | [依赖: T-RES-SVC-01, T-STAY-SVC-01] | 3h | fromDate 起未来订单 | 已完成 |
 
 ### Mapper 层任务
 

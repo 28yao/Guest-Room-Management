@@ -35,6 +35,43 @@ export function listRoomFloorsApi() {
   return request.get<{ data: number[] }>('/rooms/floors')
 }
 
+export interface RoomScheduleOrderVO {
+  orderType: 'RESERVATION' | 'STAY'
+  orderId: number
+  orderNo: string
+  guestName: string
+  guestPhone: string
+  arrivalDate: string
+  departureDate: string
+  arrivalAt?: string
+  departureAt?: string
+  status: string
+  remark?: string
+  agreedDailyRate?: number
+  editable?: boolean
+}
+
+export interface RoomScheduleVO {
+  roomId: number
+  roomNo: string
+  roomTypeId: number
+  roomTypeName: string
+  rackRate?: number
+  actualStatus: string
+  version: number
+  viewDate: string
+  occupiedOnViewDate: boolean
+  orders: RoomScheduleOrderVO[]
+}
+
+export function getRoomScheduleApi(roomId: number, fromDate?: string) {
+  const params: Record<string, string> = {}
+  if (fromDate) {
+    params.fromDate = fromDate
+  }
+  return request.get<{ data: RoomScheduleVO }>(`/rooms/${roomId}/schedule`, { params })
+}
+
 export function getRoomBoardApi(floorNo?: number, viewDate?: string) {
   const params: Record<string, string | number> = {}
   if (floorNo != null) {

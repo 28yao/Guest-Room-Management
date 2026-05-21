@@ -115,4 +115,15 @@ public final class ReservationTimePolicy {
     public static LocalDateTime effectiveStayEnd(StayOrder stay) {
         return LocalDateTime.of(stay.getDepartureDate(), DEFAULT_DEPARTURE_TIME);
     }
+
+    /**
+     * 在住单是否占用指定查看日（与房态图展示态、日程 occupied 一致，含 check_in_at）。
+     *
+     * @param stay     在住单
+     * @param viewDate 查看日
+     * @return 是否占用
+     */
+    public static boolean stayOccupiesViewDate(StayOrder stay, LocalDate viewDate) {
+        return occupiesViewDate(viewDate, effectiveStayStart(stay), effectiveStayEnd(stay));
+    }
 }
