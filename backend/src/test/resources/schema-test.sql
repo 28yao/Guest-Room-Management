@@ -83,6 +83,8 @@ CREATE TABLE IF NOT EXISTS reservation (
     room_id BIGINT,
     arrival_date DATE NOT NULL,
     departure_date DATE NOT NULL,
+    arrival_at TIMESTAMP NOT NULL,
+    departure_at TIMESTAMP NOT NULL,
     status VARCHAR(32) NOT NULL,
     remark VARCHAR(512),
     created_by BIGINT NOT NULL,

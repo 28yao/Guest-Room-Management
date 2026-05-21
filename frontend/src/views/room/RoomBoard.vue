@@ -2,10 +2,20 @@
   <div>
     <div class="toolbar">
       <h3>房态图</h3>
+      <el-date-picker
+        v-model="viewDate"
+        type="date"
+        value-format="YYYY-MM-DD"
+        placeholder="查看日期"
+        style="width: 150px"
+        @change="load"
+      />
+      <el-button link type="primary" @click="setToday">今天</el-button>
       <el-select v-model="floorFilter" clearable placeholder="全部楼层" style="width: 140px" @change="load">
         <el-option v-for="f in floors" :key="f" :label="`${f} 层`" :value="f" />
       </el-select>
       <el-button @click="load">刷新</el-button>
+      <span class="date-hint">展示态按 {{ viewDate }} 与预订时段计算；操作以库内实时状态为准</span>
     </div>
     <div v-if="items.length === 0" class="empty">暂无客房，请先在「客房管理」中维护房号</div>
     <div v-else class="board">
@@ -29,30 +39,33 @@
     </div>
 
     <el-dialog v-model="actionVisible" title="客房操作" width="480px">
-      <p><strong>{{ selected?.roomNo }}</strong> — {{ statusLabel(selected?.status || '') }}</p>
+      <p>
+        <strong>{{ selected?.roomNo }}</strong> — 展示：{{ statusLabel(selected?.status || '') }}；
+        库内：{{ statusLabel(selected?.actualStatus || '') }}
+      </p>
       <el-button
-        v-if="auth.hasPermission('room:status:maintenance') && selected?.status !== 'OUT_OF_ORDER'"
+        v-if="auth.hasPermission('room:status:maintenance') && selected?.actualStatus !== 'OUT_OF_ORDER'"
         type="warning"
         @click="openMaintenance"
       >
         设维修
       </el-button>
       <el-button
-        v-if="auth.hasPermission('room:status:maintenance') && selected?.status === 'OUT_OF_ORDER'"
+        v-if="auth.hasPermission('room:status:maintenance') && selected?.actualStatus === 'OUT_OF_ORDER'"
         type="success"
         @click="openEndMaintenance"
       >
         结束维修
       </el-button>
       <el-button
-        v-if="auth.hasPermission('room:status:dirty') && canMarkDirty(selected?.status)"
+        v-if="auth.hasPermission('room:status:dirty') && canMarkDirty(selected?.actualStatus)"
         type="warning"
         @click="submitMarkDirty"
       >
         设为脏房
       </el-button>
       <el-button
-        v-if="auth.hasPermission('room:status:clean') && canMarkClean(selected?.status)"
+        v-if="auth.hasPermission('room:status:clean') && canMarkClean(selected?.actualStatus)"
         type="success"
         @click="submitMarkClean"
       >
@@ -119,11 +132,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import {
   getRoomBoardApi,
+  listRoomFloorsApi,
   startMaintenanceApi,
   endMaintenanceApi,
   forceRoomStatusApi,
@@ -138,7 +152,9 @@ import {
 
 const auth = useAuthStore()
 const items = ref<RoomBoardItem[]>([])
+const floors = ref<number[]>([])
 const floorFilter = ref<number | undefined>()
+const viewDate = ref(todayString())
 const actionVisible = ref(false)
 const selected = ref<RoomBoardItem | null>(null)
 const maintVisible = ref(false)
@@ -150,14 +166,6 @@ const maintForm = reactive({ reason: '', expectedRecoveryAt: '' })
 const endMaintForm = reactive({ targetStatus: 'DIRTY' })
 const forceForm = reactive({ targetStatus: 'VACANT_CLEAN', reason: '' })
 
-const floors = computed(() => {
-  const set = new Set<number>()
-  for (const r of items.value) {
-    set.add(r.floorNo)
-  }
-  return Array.from(set).sort((a, b) => a - b)
-})
-
 function statusLabel(s: string) {
   return ROOM_STATUS_LABEL[s] || s
 }
@@ -166,9 +174,30 @@ function statusColor(s: string) {
   return ROOM_STATUS_COLOR[s] || '#dcdfe6'
 }
 
+function todayString() {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function setToday() {
+  viewDate.value = todayString()
+  load()
+}
+
+async function loadFloors() {
+  const res = await listRoomFloorsApi()
+  floors.value = res.data.data || []
+}
+
 async function load() {
-  const res = await getRoomBoardApi(floorFilter.value)
-  items.value = res.data.data
+  const res = await getRoomBoardApi(floorFilter.value, viewDate.value)
+  items.value = res.data.data.map((r) => ({
+    ...r,
+    actualStatus: r.actualStatus || r.status
+  }))
 }
 
 function openActions(room: RoomBoardItem) {
@@ -210,6 +239,7 @@ async function submitMarkDirty() {
     ElMessage.success('已设为脏房')
     actionVisible.value = false
     await load()
+    await loadFloors()
   } finally {
     saving.value = false
   }
@@ -228,6 +258,7 @@ async function submitMarkClean() {
     ElMessage.success('已设为空净')
     actionVisible.value = false
     await load()
+    await loadFloors()
   } finally {
     saving.value = false
   }
@@ -255,6 +286,7 @@ async function submitMaintenance() {
     ElMessage.success('已设为维修')
     maintVisible.value = false
     await load()
+    await loadFloors()
   } finally {
     saving.value = false
   }
@@ -271,6 +303,7 @@ async function submitEndMaintenance() {
     ElMessage.success('维修已结束')
     endMaintVisible.value = false
     await load()
+    await loadFloors()
   } finally {
     saving.value = false
   }
@@ -292,20 +325,29 @@ async function submitForce() {
     ElMessage.success('房态已更新')
     forceVisible.value = false
     await load()
+    await loadFloors()
   } finally {
     saving.value = false
   }
 }
 
-onMounted(load)
+onMounted(async () => {
+  await loadFloors()
+  await load()
+})
 </script>
 
 <style scoped>
 .toolbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 16px;
+}
+.date-hint {
+  font-size: 12px;
+  color: #909399;
 }
 .board {
   display: flex;

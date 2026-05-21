@@ -17,6 +17,7 @@ public class RoomBoardItemDto {
     private String roomTypeName;
     private Integer floorNo;
     private String status;
+    private String actualStatus;
     private Integer version;
     private BigDecimal rackRate;
     private List<String> dailyTags;
@@ -67,6 +68,14 @@ public class RoomBoardItemDto {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getActualStatus() {
+        return actualStatus;
+    }
+
+    public void setActualStatus(String actualStatus) {
+        this.actualStatus = actualStatus;
     }
 
     public Integer getVersion() {

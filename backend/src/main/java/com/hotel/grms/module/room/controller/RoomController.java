@@ -23,7 +23,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.format.annotation.DateTimeFormat;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -53,11 +55,24 @@ public class RoomController {
      * 房态图。
      *
      * @param floorNo 楼层
+     * @param date    查看日期（预抵/预离标签），默认当天
      * @return 房态图项
      */
     @GetMapping("/board")
-    public R<List<RoomBoardItemDto>> board(@RequestParam(required = false) Integer floorNo) {
-        return R.ok(roomBoardService.loadBoard(floorNo));
+    public R<List<RoomBoardItemDto>> board(
+            @RequestParam(required = false) Integer floorNo,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return R.ok(roomBoardService.loadBoard(floorNo, date));
+    }
+
+    /**
+     * 全部楼层（房态图筛选用）。
+     *
+     * @return 楼层号列表
+     */
+    @GetMapping("/floors")
+    public R<List<Integer>> floors() {
+        return R.ok(roomService.listFloors());
     }
 
     /**

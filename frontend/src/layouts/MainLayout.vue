@@ -4,6 +4,9 @@
       <div class="logo">GRMS</div>
       <el-menu :default-active="activeMenu" router>
         <el-menu-item index="/rooms/board">房态图</el-menu-item>
+        <el-menu-item v-if="auth.hasPermission('reservation:manage')" index="/reservations">
+          预订管理
+        </el-menu-item>
         <el-menu-item v-if="auth.hasPermission('room:manage')" index="/rooms">客房管理</el-menu-item>
         <el-menu-item v-if="auth.hasPermission('room:type:manage')" index="/room-types">房型管理</el-menu-item>
         <el-menu-item index="/home">工作台</el-menu-item>

@@ -14,7 +14,12 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import com.hotel.grms.module.reservation.dto.AssignRoomRequest;
+import com.hotel.grms.module.reservation.dto.ReservationCreateRequest;
+
 import java.math.BigDecimal;
+import java.time.LocalDate;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -59,6 +64,52 @@ class RoomControllerTest {
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0));
+    }
+
+    /**
+     * 指定查看日期查询房态图。
+     */
+    @Test
+    void boardWithViewDateReturnsOk() throws Exception {
+        mockMvc.perform(get("/api/v1/rooms/board")
+                        .param("date", "2026-12-25")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+    }
+
+    @Test
+    void boardHidesReservationOutsideViewDate() throws Exception {
+        Long typeId = createRoomType();
+        Long roomId = createRoom(typeId, "805");
+        Long reservationId = createReservation(typeId, LocalDate.of(2026, 5, 22), LocalDate.of(2026, 5, 23));
+        AssignRoomRequest assign = new AssignRoomRequest();
+        assign.setRoomId(roomId);
+        mockMvc.perform(post("/api/v1/reservations/" + reservationId + "/assign-room")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(assign)))
+                .andExpect(jsonPath("$.code").value(0));
+        mockMvc.perform(get("/api/v1/rooms/board")
+                        .param("date", "2026-05-24")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("VACANT_CLEAN"))
+                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].actualStatus").value("RESERVED"));
+        mockMvc.perform(get("/api/v1/rooms/board")
+                        .param("date", "2026-05-22")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].status").value("RESERVED"));
+    }
+
+    @Test
+    void listFloorsReturnsAll() throws Exception {
+        Long typeId = createRoomType();
+        createRoom(typeId, "806", 2);
+        createRoom(typeId, "807", 5);
+        mockMvc.perform(get("/api/v1/rooms/floors")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data").isArray());
     }
 
     @Test
@@ -114,6 +165,43 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andReturn();
         return objectMapper.readTree(roomResult.getResponse().getContentAsString())
+                .path("data").path("id").asLong();
+    }
+
+    private Long createRoom(Long typeId, String roomNo) throws Exception {
+        return createRoom(typeId, roomNo, 8);
+    }
+
+    private Long createRoom(Long typeId, String roomNo, int floorNo) throws Exception {
+        RoomRequest roomRequest = new RoomRequest();
+        roomRequest.setRoomNo(roomNo);
+        roomRequest.setRoomTypeId(typeId);
+        roomRequest.setFloorNo(floorNo);
+        MvcResult roomResult = mockMvc.perform(post("/api/v1/rooms")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(roomRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andReturn();
+        return objectMapper.readTree(roomResult.getResponse().getContentAsString())
+                .path("data").path("id").asLong();
+    }
+
+    private Long createReservation(Long typeId, LocalDate arrival, LocalDate departure) throws Exception {
+        ReservationCreateRequest request = new ReservationCreateRequest();
+        request.setGuestName("房态测试");
+        request.setGuestPhone("13800003333");
+        request.setRoomTypeId(typeId);
+        request.setArrivalDate(arrival);
+        request.setDepartureDate(departure);
+        MvcResult result = mockMvc.perform(post("/api/v1/reservations")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(jsonPath("$.code").value(0))
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString())
                 .path("data").path("id").asLong();
     }
 

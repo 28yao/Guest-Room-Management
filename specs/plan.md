@@ -90,7 +90,8 @@ Guest Room Management/
 | OQ | 默认决策 | 影响模块 |
 |----|----------|----------|
 | OQ-01 | **按晚计费**；入住日至离店日前一晚为计费晚数；**离店当天不计费** | `billing` |
-| OQ-02 | 房态图：**主状态单值** + **当日叠加标签**（预抵/预离） | `room` |
+| OQ-02 | 房态图：**展示态**（按查看日+预订时刻）+ **库内主状态**（操作）+ 当日标签 | `room` |
+| OQ-06 | 预订 **arrival_at / departure_at**；默认 18:00 / 12:00；冲突含 **1h 打扫缓冲** | `reservation` |
 | OQ-03 | 前台须 **开班** 后收款计入当前班；**结班** 时若有待办则阻断或需 `shift:force_close` 权限 | `shift` |
 | OQ-04 | 钟点房/半日房 **不做** | — |
 | OQ-05 | 房型门市价修改 **即时全局生效**（不影响已结账单） | `room` |
@@ -171,8 +172,18 @@ operation_log (业务_id 多态)
 
 | 标签 | 条件 |
 |------|------|
-| `EXPECTED_ARRIVAL` | 存在已确认预订，`arrival_date = today`，未入住 |
-| `EXPECTED_DEPARTURE` | 存在在住，`departure_date = today` |
+| `EXPECTED_ARRIVAL` | 存在已确认预订，`DATE(arrival_at) = 查看日`，未入住 |
+| `EXPECTED_DEPARTURE` | 存在在住或有效预订，`DATE(departure_at) = 查看日` |
+
+**房态图展示态 `display_status`（计算字段）**
+
+| 条件 | 展示态 |
+|------|--------|
+| 查看日落在有效预订占用区间 `[arrival_at, departure_at)` 且已 `room_id` | `RESERVED` |
+| 库内 `RESERVED` 但查看日不在上述区间 | `VACANT_CLEAN`（展示用） |
+| 其他 | 与库内 `room.status` 一致 |
+
+占用区间重叠判定（排房/可售）：`existing.arrival_at < new.departure_at + 1h` 且 `new.arrival_at < existing.departure_at + 1h`。
 
 **预订状态 `reservation.status`**
 
@@ -366,6 +377,8 @@ CREATE TABLE reservation (
   room_id BIGINT,
   arrival_date DATE NOT NULL,
   departure_date DATE NOT NULL,
+  arrival_at DATETIME NOT NULL,
+  departure_at DATETIME NOT NULL,
   status VARCHAR(32) NOT NULL,
   remark VARCHAR(512),
   created_by BIGINT NOT NULL,
@@ -452,7 +465,8 @@ CREATE TABLE shift_session (
 |--------|------|------|------|------|
 | API-ROOM-01 | CRUD | `/room-types` | `room:type:manage` | §5.1 |
 | API-ROOM-02 | CRUD | `/rooms` | `room:manage` | §5.2 |
-| API-ROOM-03 | GET | `/rooms/board` | 登录 | §5.3；含 daily_tags |
+| API-ROOM-03 | GET | `/rooms/board` | 登录 | §5.3；`status` 为展示态，`actualStatus` 为库内态；`daily_tags`；`date` 默认当天 |
+| API-ROOM-03b | GET | `/rooms/floors` | 登录 | 全部楼层列表（房态图筛选用） |
 | API-ROOM-04 | POST | `/rooms/{id}/maintenance` | `room:status:maintenance` | BR-11 |
 | API-ROOM-05 | POST | `/rooms/{id}/maintenance/end` | 同上 | §5.2 |
 | API-ROOM-06 | POST | `/rooms/{id}/status/dirty` | `room:status:dirty` | 前台置脏（状态机） |
@@ -469,7 +483,7 @@ CREATE TABLE shift_session (
 | API-RES-04 | POST | `/reservations/{id}/assign-room` | 同上 | §6.3、BR-01 |
 | API-RES-05 | POST | `/reservations/{id}/cancel` | 同上 | §6.5 |
 | API-RES-06 | POST | `/reservations/{id}/release` | 同上 | §6.4、BR-03 |
-| API-RES-07 | GET | `/reservations/availability` | 同上 | BR-01；查询可排房列表 |
+| API-RES-07 | GET | `/reservations/availability` | 同上 | BR-01；`arrivalAt`/`departureAt` 或日期+默认时刻 |
 
 ### 6.5 在住 — MOD-STAY
 
@@ -555,9 +569,10 @@ CREATE TABLE shift_session (
 
 ### 7.2 房态图组件 `RoomBoard.vue`
 
-- 格子：房号、主状态色、标签（预抵/预离）
-- 筛选：楼层、房型、状态
-- 点击：快捷菜单（入住、预订详情、置维修）依权限显示
+- 格子：房号、**展示态**色块、标签（预抵/预离）
+- 筛选：楼层（下拉来自 `/rooms/floors`，不受当前楼层筛选限制）、**查看日期**（默认今天）
+- 提示：展示态按查看日与预订时刻；操作以库内实时状态为准
+- 点击：快捷菜单依 **actualStatus** 与权限显示
 
 ---
 

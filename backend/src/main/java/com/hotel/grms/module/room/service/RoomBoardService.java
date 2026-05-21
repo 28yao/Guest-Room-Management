@@ -1,16 +1,21 @@
 package com.hotel.grms.module.room.service;
 
 import com.hotel.grms.module.room.DailyTag;
+import com.hotel.grms.module.room.RoomStatus;
 import com.hotel.grms.module.room.dto.RoomBoardItemDto;
 import com.hotel.grms.module.room.dto.RoomBoardRowDto;
 import com.hotel.grms.module.room.mapper.RoomBoardMapper;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
- * 房态图查询服务，组装当日叠加标签。
+ * 房态图查询服务，组装指定日期叠加标签与展示房态。
  *
  * @author liuxinsi
  * @date 2026-05-21
@@ -27,11 +32,15 @@ public class RoomBoardService {
     /**
      * 查询房态图数据。
      *
-     * @param floorNo 楼层筛选
+     * @param floorNo  楼层筛选
+     * @param viewDate 查看日期，null 时使用当天
      * @return 房态图项列表
      */
-    public List<RoomBoardItemDto> loadBoard(Integer floorNo) {
-        List<RoomBoardRowDto> rows = roomBoardMapper.selectBoardRows(floorNo);
+    public List<RoomBoardItemDto> loadBoard(Integer floorNo, LocalDate viewDate) {
+        LocalDate date = viewDate == null ? LocalDate.now() : viewDate;
+        LocalDateTime dayStart = date.atStartOfDay();
+        LocalDateTime dayEnd = date.plusDays(1).atStartOfDay();
+        List<RoomBoardRowDto> rows = roomBoardMapper.selectBoardRows(floorNo, date, dayStart, dayEnd);
         List<RoomBoardItemDto> items = new ArrayList<RoomBoardItemDto>(rows.size());
         for (RoomBoardRowDto row : rows) {
             items.add(toItem(row));
@@ -46,21 +55,37 @@ public class RoomBoardService {
         item.setRoomTypeId(row.getRoomTypeId());
         item.setRoomTypeName(row.getRoomTypeName());
         item.setFloorNo(row.getFloorNo());
-        item.setStatus(row.getStatus());
+        item.setActualStatus(row.getStatus());
+        item.setStatus(resolveDisplayStatus(row));
         item.setVersion(row.getVersion());
         item.setRackRate(row.getRackRate());
         item.setDailyTags(buildTags(row));
         return item;
     }
 
+    private String resolveDisplayStatus(RoomBoardRowDto row) {
+        String dbStatus = row.getStatus();
+        boolean reservedOnView = row.getReservedOnViewDate() != null && row.getReservedOnViewDate() == 1;
+        if (reservedOnView) {
+            return RoomStatus.RESERVED;
+        }
+        if (RoomStatus.RESERVED.equals(dbStatus)) {
+            return RoomStatus.VACANT_CLEAN;
+        }
+        return dbStatus;
+    }
+
     private List<String> buildTags(RoomBoardRowDto row) {
-        List<String> tags = new ArrayList<String>(2);
+        Set<String> tagSet = new LinkedHashSet<String>();
         if (row.getExpectedArrival() != null && row.getExpectedArrival() == 1) {
-            tags.add(DailyTag.EXPECTED_ARRIVAL);
+            tagSet.add(DailyTag.EXPECTED_ARRIVAL);
         }
         if (row.getExpectedDeparture() != null && row.getExpectedDeparture() == 1) {
-            tags.add(DailyTag.EXPECTED_DEPARTURE);
+            tagSet.add(DailyTag.EXPECTED_DEPARTURE);
         }
-        return tags;
+        if (row.getExpectedResDeparture() != null && row.getExpectedResDeparture() == 1) {
+            tagSet.add(DailyTag.EXPECTED_DEPARTURE);
+        }
+        return new ArrayList<String>(tagSet);
     }
 }

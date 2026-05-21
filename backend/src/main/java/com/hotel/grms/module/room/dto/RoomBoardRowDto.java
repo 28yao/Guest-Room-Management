@@ -20,6 +20,8 @@ public class RoomBoardRowDto {
     private BigDecimal rackRate;
     private Integer expectedArrival;
     private Integer expectedDeparture;
+    private Integer reservedOnViewDate;
+    private Integer expectedResDeparture;
 
     public Long getRoomId() {
         return roomId;
@@ -99,5 +101,21 @@ public class RoomBoardRowDto {
 
     public void setExpectedDeparture(Integer expectedDeparture) {
         this.expectedDeparture = expectedDeparture;
+    }
+
+    public Integer getReservedOnViewDate() {
+        return reservedOnViewDate;
+    }
+
+    public void setReservedOnViewDate(Integer reservedOnViewDate) {
+        this.reservedOnViewDate = reservedOnViewDate;
+    }
+
+    public Integer getExpectedResDeparture() {
+        return expectedResDeparture;
+    }
+
+    public void setExpectedResDeparture(Integer expectedResDeparture) {
+        this.expectedResDeparture = expectedResDeparture;
     }
 }

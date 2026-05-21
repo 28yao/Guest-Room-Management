@@ -175,6 +175,8 @@
 | T-ROOM-FE-04 | 维修对话框（原因、ETA 必填） | [依赖: T-ROOM-CTL-04] | 2h | 提交后房态维修 | 已完成 |
 | T-ROOM-FE-05 | 强制改态对话框（原因二次确认） | [依赖: T-ROOM-CTL-06] | 2h | 无权限不显示入口 | 已完成 |
 | T-ROOM-FE-06 | 房态图「设为脏房/设为空净」按钮 | [依赖: T-ROOM-CTL-07,08] | 1h | 按权限与当前态显示 | 已完成 |
+| T-ROOM-FE-07 | 房态图指定日期查看（日期选择器） | [依赖: T-ROOM-CTL-03a] | 1h | 切换日期后预抵/预离标签随之变化 | 已完成 |
+| T-ROOM-FE-08 | 楼层下拉独立数据源；展示态/库内态 | [依赖: T-ROOM-CTL-03b, T-ROOM-SVC-02a] | 1h | 筛选后仍可换楼层；过期预订不显示预订色 | 已完成 |
 
 ### Controller 层任务
 
@@ -183,6 +185,8 @@
 | T-ROOM-CTL-01 | `CRUD /api/v1/room-types` | [依赖: T-AUTH-SVC-01] | 2h | 权限 `room:type:manage` | 已完成 |
 | T-ROOM-CTL-02 | `CRUD /api/v1/rooms` | [依赖: T-ROOM-SVC-01] | 2h | 权限 `room:manage` | 已完成 |
 | T-ROOM-CTL-03 | `GET /api/v1/rooms/board` | [依赖: T-ROOM-SVC-02] | 2h | 含 status+daily_tags | 已完成 |
+| T-ROOM-CTL-03a | `GET /rooms/board?date=` 按指定日期算标签 | [依赖: T-ROOM-SVC-02] | 0.5h | 不传 date 等同当天 | 已完成 |
+| T-ROOM-CTL-03b | `GET /rooms/floors` 全部楼层 | [依赖: T-ROOM-SVC-02] | 0.5h | 与楼层筛选无关 | 已完成 |
 | T-ROOM-CTL-04 | `POST /rooms/{id}/maintenance` | [依赖: T-ROOM-SVC-03] | 1h | BR-11 校验 | 已完成 |
 | T-ROOM-CTL-05 | `POST /rooms/{id}/maintenance/end` | [依赖: T-ROOM-SVC-03] | 1h | 结束维修 | 已完成 |
 | T-ROOM-CTL-06 | `POST /rooms/{id}/status/force` | [依赖: T-ROOM-SVC-04] | 1h | 需 `room:status:force` | 已完成 |
@@ -195,6 +199,7 @@
 |------|------|------|------|----------|------|
 | T-ROOM-SVC-01 | `RoomTypeService` / `RoomService` 基础 CRUD | [依赖: T-ROOM-MAP-01] | 3h | 房号唯一 | 已完成 |
 | T-ROOM-SVC-02 | `RoomBoardService`：批量查房+算 daily_tags | [依赖: T-ROOM-SVC-01] | 4h | 无嵌套循环 | 已完成 |
+| T-ROOM-SVC-02a | 房态图展示态按查看日+预订时刻 | [依赖: T-RES-DB-01, T-ROOM-MAP-03] | 2h | 查看日不在占用区间不展示预订 | 已完成 |
 | T-ROOM-SVC-03 | `RoomMaintenanceService`：维修开始/结束 | [依赖: T-ROOM-SVC-04] | 3h | 写 maintenance_log | 已完成 |
 | T-ROOM-SVC-04 | `RoomStateMachine` 状态转换与 assert | [依赖: T-ROOM-SVC-01] | 4h | 非法转换抛 40001 | 已完成 |
 
@@ -217,6 +222,7 @@
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
 | T-ROOM-UT-FE-01 | 按楼层筛选房态图 | [依赖: T-ROOM-FE-01] | 0.5h | 筛选结果正确 | 已完成 |
+| T-ROOM-UT-FE-03 | 切换查看日期刷新预抵/预离 | [依赖: T-ROOM-FE-07] | 0.5h | 与预订/在住日期一致 | 已完成 |
 | T-ROOM-UT-FE-02 | 无强制权限不显示强制改态按钮 | [依赖: T-ROOM-FE-05] | 0.5h | 按钮隐藏 | 已完成 |
 
 ### 接口测试方法
@@ -224,6 +230,7 @@
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
 | T-ROOM-IT-01 | 房态图接口返回预抵标签 | [依赖: T-ROOM-CTL-03] | 1h | 有当日预订则带标签 | 已完成 |
+| T-ROOM-IT-03 | `GET /board?date=yyyy-MM-dd` 正常返回 | [依赖: T-ROOM-CTL-03a] | 0.5h | code=0 | 已完成 |
 | T-ROOM-IT-02 | 维修缺少原因返回 400 | [依赖: T-ROOM-CTL-04] | 0.5h | 校验失败 | 已完成 |
 
 ### 异常情况测试
@@ -250,66 +257,69 @@
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-RES-FE-01 | 预订列表页（筛选日期/状态） | [依赖: T-RES-CTL-02] | 3h | 分页列表正常 | 待开始 |
-| T-RES-FE-02 | 新建/编辑预订表单 | [依赖: T-RES-CTL-01, T-RES-CTL-03] | 4h | 校验必填项 | 待开始 |
-| T-RES-FE-03 | 预排房组件（调 availability API） | [依赖: T-RES-CTL-04, T-RES-CTL-07] | 3h | 不可售房不可选 | 待开始 |
-| T-RES-FE-04 | 释放预订二次确认（可选 No-show） | [依赖: T-RES-CTL-06] | 2h | 释放后房态恢复 | 待开始 |
+| T-RES-FE-01 | 预订列表页（筛选日期/状态） | [依赖: T-RES-CTL-02] | 3h | 分页列表正常 | 已完成 |
+| T-RES-FE-02 | 新建/编辑预订表单 | [依赖: T-RES-CTL-01, T-RES-CTL-03] | 4h | 校验必填项 | 已完成 |
+| T-RES-FE-03 | 预排房组件（调 availability API） | [依赖: T-RES-CTL-04, T-RES-CTL-07] | 3h | 不可售房不可选 | 已完成 |
+| T-RES-FE-04 | 释放预订二次确认（可选 No-show） | [依赖: T-RES-CTL-06] | 2h | 释放后房态恢复 | 已完成 |
 
 ### Controller 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-RES-CTL-01 | `POST /api/v1/reservations` | [依赖: T-RES-SVC-01] | 1h | 生成 res_no | 待开始 |
-| T-RES-CTL-02 | `GET /api/v1/reservations` | [依赖: T-RES-SVC-01] | 1h | 支持筛选 | 待开始 |
-| T-RES-CTL-03 | `PUT /api/v1/reservations/{id}` | [依赖: T-RES-SVC-01] | 1h | 改期更新 | 待开始 |
-| T-RES-CTL-04 | `POST /reservations/{id}/assign-room` | [依赖: T-RES-SVC-02] | 2h | 房态→RESERVED | 待开始 |
-| T-RES-CTL-05 | `POST /reservations/{id}/cancel` | [依赖: T-RES-SVC-03] | 1h | 无罚金 | 待开始 |
-| T-RES-CTL-06 | `POST /reservations/{id}/release` | [依赖: T-RES-SVC-03] | 1h | BR-03 | 待开始 |
-| T-RES-CTL-07 | `GET /reservations/availability` | [依赖: T-RES-SVC-04] | 2h | 返回可排房列表 | 待开始 |
+| T-RES-CTL-01 | `POST /api/v1/reservations` | [依赖: T-RES-SVC-01] | 1h | 生成 res_no | 已完成 |
+| T-RES-CTL-02 | `GET /api/v1/reservations` | [依赖: T-RES-SVC-01] | 1h | 支持筛选 | 已完成 |
+| T-RES-CTL-03 | `PUT /api/v1/reservations/{id}` | [依赖: T-RES-SVC-01] | 1h | 改期更新 | 已完成 |
+| T-RES-CTL-04 | `POST /reservations/{id}/assign-room` | [依赖: T-RES-SVC-02] | 2h | 房态→RESERVED | 已完成 |
+| T-RES-CTL-05 | `POST /reservations/{id}/cancel` | [依赖: T-RES-SVC-03] | 1h | 无罚金 | 已完成 |
+| T-RES-CTL-06 | `POST /reservations/{id}/release` | [依赖: T-RES-SVC-03] | 1h | BR-03 | 已完成 |
+| T-RES-CTL-07 | `GET /reservations/availability` | [依赖: T-RES-SVC-04] | 2h | 返回可排房列表 | 已完成 |
 
 ### Service 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-RES-SVC-01 | `ReservationService` 创建/查询/更新 | [依赖: T-RES-MAP-01] | 4h | 状态机正确 | 待开始 |
-| T-RES-SVC-02 | `assignRoom`：可售校验+房态 RESERVED | [依赖: T-RES-SVC-04, T-ROOM-SVC-04] | 3h | BR-01 | 待开始 |
-| T-RES-SVC-03 | `cancel/release`：释放房态+审计 | [依赖: T-RES-SVC-02, T-AUDIT-SVC-01] | 3h | BR-03/04 | 待开始 |
-| T-RES-SVC-04 | `RoomAvailabilityService.checkAssignable` | [依赖: T-ROOM-MAP-01] | 4h | 冲突返回 40002 | 待开始 |
+| T-RES-SVC-01 | `ReservationService` 创建/查询/更新 | [依赖: T-RES-MAP-01] | 4h | 状态机正确 | 已完成 |
+| T-RES-SVC-02 | `assignRoom`：可售校验+房态 RESERVED | [依赖: T-RES-SVC-04, T-ROOM-SVC-04] | 3h | BR-01 | 已完成 |
+| T-RES-SVC-03 | `cancel/release`：释放房态+审计 | [依赖: T-RES-SVC-02, T-AUDIT-SVC-01] | 3h | BR-03/04；审计待 MOD-AUDIT | 已完成 |
+| T-RES-SVC-04 | `RoomAvailabilityService.checkAssignable` | [依赖: T-ROOM-MAP-01] | 4h | 冲突返回 40002 | 已完成 |
 
 ### Mapper 层任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-RES-MAP-01 | `ReservationMapper` CRUD + 日期冲突查询 | [依赖: T-INFRA-DB-03] | 2h | 参数化 SQL | 待开始 |
+| T-RES-MAP-01 | `ReservationMapper` CRUD + 日期冲突查询 | [依赖: T-INFRA-DB-03] | 2h | 参数化 SQL | 已完成 |
 
 ### Repository/数据持久化任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-RES-REPO-01 | 实体 `Reservation` + 状态枚举 | [依赖: T-INFRA-DB-01] | 1h | 与 plan 一致 | 待开始 |
+| T-RES-REPO-01 | 实体 `Reservation` + 状态枚举 | [依赖: T-INFRA-DB-01] | 1h | 与 plan 一致 | 已完成 |
+| T-RES-DB-01 | V7 `arrival_at`/`departure_at` 迁移与回填 | [依赖: T-INFRA-DB-01] | 1h | 默认 18:00/12:00 | 已完成 |
+| T-RES-SVC-05 | `ReservationTimePolicy` 默认时刻与 1h 缓冲冲突 | [依赖: T-RES-DB-01] | 2h | BR-01/BR-12 | 已完成 |
+| T-RES-FE-05 | 预订表单入住/离店时刻选择 | [依赖: T-RES-SVC-05] | 2h | 默认 18:00、12:00 | 已完成 |
 
 ### 页面测试方法
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-RES-UT-FE-01 | 释放操作弹出确认框 | [依赖: T-RES-FE-04] | 0.5h | 取消则不释放 | 待开始 |
+| T-RES-UT-FE-01 | 释放操作弹出确认框 | [依赖: T-RES-FE-04] | 0.5h | 取消则不释放 | 已完成 |
 
 ### 接口测试方法
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-RES-IT-01 | 预排房后房态 RESERVED | [依赖: T-RES-CTL-04] | 1h | TC-01 | 待开始 |
-| T-RES-IT-02 | 超售场景返回 40002 | [依赖: T-RES-CTL-04] | 1h | TC-01 负例 | 待开始 |
-| T-RES-IT-03 | 手动释放后房态 VACANT_CLEAN | [依赖: T-RES-CTL-06] | 1h | TC-09 | 待开始 |
+| T-RES-IT-01 | 预排房后房态 RESERVED | [依赖: T-RES-CTL-04] | 1h | TC-01 | 已完成 |
+| T-RES-IT-02 | 超售场景返回 40002 | [依赖: T-RES-CTL-04] | 1h | TC-01 负例 | 已完成 |
+| T-RES-IT-03 | 手动释放后房态 VACANT_CLEAN | [依赖: T-RES-CTL-06] | 1h | TC-09 | 已完成 |
 
 ### 异常情况测试
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-RES-EX-01 | 对维修房预排房失败 | [依赖: T-RES-SVC-02] | 1h | 明确提示 | 待开始 |
-| T-RES-EX-02 | 已入住预订不可重复入住 | [依赖: T-RES-SVC-01] | 0.5h | 状态校验 | 待开始 |
+| T-RES-EX-01 | 对维修房预排房失败 | [依赖: T-RES-SVC-02] | 1h | 明确提示 | 已完成 |
+| T-RES-EX-02 | 已入住预订不可重复入住 | [依赖: T-RES-SVC-01] | 0.5h | 状态校验 | 已完成 |
 
-**当前状态**：`待开始`
+**当前状态**：`已完成`
 
 ---
 

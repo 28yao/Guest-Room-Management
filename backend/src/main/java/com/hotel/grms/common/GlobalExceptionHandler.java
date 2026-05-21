@@ -109,7 +109,8 @@ public class GlobalExceptionHandler {
                     || message.contains("doesn't exist"))) {
                 return "数据库表结构与当前版本不一致，请在 grms 库依次执行："
                         + "sql/V3__auth_add_description.sql（缺 description 列）、"
-                        + "sql/V5__schema_align_legacy.sql（缺 room/room_type 等列），"
+                        + "sql/V5__schema_align_legacy.sql（缺 room/room_type 等列）、"
+                        + "sql/V7__reservation_datetime.sql（缺 arrival_at/departure_at 列），"
                         + "或重新执行 sql/V1、V2 全量建库";
             }
             cursor = cursor.getCause();

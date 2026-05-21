@@ -40,6 +40,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '客房管理', permissions: ['room:manage'] }
       },
       {
+        path: 'reservations',
+        name: 'ReservationList',
+        component: () => import('@/views/reservation/ReservationList.vue'),
+        meta: { title: '预订管理', permissions: ['reservation:manage'] }
+      },
+      {
         path: 'system/users',
         name: 'UserManage',
         component: () => import('@/views/system/UserManage.vue'),

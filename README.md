@@ -19,10 +19,9 @@
 |------|------|------|
 | MOD-INFRA | 已完成 | 工程骨架、SQL、健康检查 |
 | MOD-AUTH | 已完成 | 登录/JWT/RBAC；用户改密/删除、角色/直授 **恢复默认** |
-| MOD-ROOM | 已完成 | 房态图、房型/客房、维修、置脏/置净、强制改态 |
-| MOD-RES 及以后 | 待开发 | 见 [tasks.md](./specs/tasks.md) §4 起 |
-
-**已知问题（待修）**：**BUG-AUTH-01** — 通过角色或直授赋予 `system:user:manage` 后，被授权账号进入「用户管理」仍可能提示「无权限访问该页面」。详见 [PROJECT_STATUS.md](./PROJECT_STATUS.md) 与 [tasks.md](./specs/tasks.md) 任务 **T-AUTH-BUG-01**。
+| MOD-ROOM | 已完成 | 房态图（含指定日期查看）、房型/客房、维修、置脏/置净、强制改态 |
+| MOD-RES | 已完成 | 预订 CRUD、预排房、释放/取消、可售查询 |
+| MOD-STAY 及以后 | 待开发 | 见 [tasks.md](./specs/tasks.md) §5 起 |
 
 **默认管理员**：`admin` / `admin123`（`sql/V2__seed_data.sql`）
 
@@ -45,7 +44,8 @@ Guest Room Management/
 │   ├── V3__auth_add_description.sql
 │   ├── V4__room_seed.sql       # 演示房型/客房（可选）
 │   ├── V5__schema_align_legacy.sql
-│   └── V6__room_status_dirty_clean.sql
+│   ├── V6__room_status_dirty_clean.sql
+│   └── V7__reservation_datetime.sql  # 预订时刻 + 默认 18:00/12:00 回填
 ├── backend/
 └── frontend/
 ```
@@ -71,6 +71,7 @@ mysql -u root -p grms < sql/V2__seed_data.sql
 mysql -u root -p grms < sql/V3__auth_add_description.sql
 mysql -u root -p grms < sql/V5__schema_align_legacy.sql
 mysql -u root -p grms < sql/V6__room_status_dirty_clean.sql
+mysql -u root -p grms < sql/V7__reservation_datetime.sql
 # 房态图演示数据（可选）：
 mysql -u root -p grms < sql/V4__room_seed.sql
 ```
@@ -98,7 +99,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev-h2
 
 ```bash
 cd frontend
-npm install
+# npm install
 npm run dev
 ```
 
@@ -108,7 +109,7 @@ npm run dev
 
 | 菜单/页面 | 路径 | 权限要点 |
 |-----------|------|----------|
-| 房态图 | `/rooms/board` | 登录即可；维修/置脏/置净/强改按权显示 |
+| 房态图 | `/rooms/board` | 登录即可；可按 **查看日期** 看预抵/预离；维修/置脏/置净/强改按权显示 |
 | 客房管理 | `/rooms` | `room:manage` |
 | 房型管理 | `/room-types` | `room:type:manage` |
 | 用户管理 | `/system/users` | `system:user:manage`；含 **修改密码**、**删除用户** |

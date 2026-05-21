@@ -16,7 +16,10 @@ export interface RoomBoardItem {
   roomTypeId: number
   roomTypeName: string
   floorNo: number
+  /** 按查看日计算的展示房态 */
   status: string
+  /** 库内实时房态（操作用） */
+  actualStatus: string
   version: number
   rackRate?: number
   dailyTags: string[]
@@ -28,10 +31,19 @@ export interface RoomForm {
   floorNo: number
 }
 
-export function getRoomBoardApi(floorNo?: number) {
-  return request.get<{ data: RoomBoardItem[] }>('/rooms/board', {
-    params: floorNo != null ? { floorNo } : {}
-  })
+export function listRoomFloorsApi() {
+  return request.get<{ data: number[] }>('/rooms/floors')
+}
+
+export function getRoomBoardApi(floorNo?: number, viewDate?: string) {
+  const params: Record<string, string | number> = {}
+  if (floorNo != null) {
+    params.floorNo = floorNo
+  }
+  if (viewDate) {
+    params.date = viewDate
+  }
+  return request.get<{ data: RoomBoardItem[] }>('/rooms/board', { params })
 }
 
 export function listRoomsApi(floorNo?: number) {

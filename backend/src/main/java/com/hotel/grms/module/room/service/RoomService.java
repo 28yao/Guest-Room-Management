@@ -40,6 +40,15 @@ public class RoomService {
     }
 
     /**
+     * 查询全部楼层号（用于房态图筛选，不受当前筛选影响）。
+     *
+     * @return 楼层列表
+     */
+    public List<Integer> listFloors() {
+        return roomMapper.selectDistinctFloors();
+    }
+
+    /**
      * 查询客房列表。
      *
      * @param floorNo 楼层，null 为全部
