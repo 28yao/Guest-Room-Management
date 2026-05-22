@@ -6,7 +6,7 @@
 | 技术方案 | [plan.md](./plan.md) v1.0 |
 | 状态图例 | `已完成` / `进行中` / `待开始` |
 | 项目管理 | [README](../README.md)、[PROJECT_STATUS](../PROJECT_STATUS.md)、[手动验收](../docs/MANUAL_ACCEPTANCE.md) 与本文档同步更新 |
-| 文档同步 | 2026-05-22：已交付至 MOD-STAT；SQL V1～V17；权限 V16（房态图/在住） |
+| 文档同步 | 2026-05-22：MOD-QA 验收自动化；房态图「全部在住/预订」BR-15 |
 
 ---
 
@@ -181,6 +181,7 @@
 | T-ROOM-FE-07 | 房态图指定日期查看（日期选择器） | [依赖: T-ROOM-CTL-03a] | 1h | 切换日期后预抵/预离标签随之变化 | 已完成 |
 | T-ROOM-FE-08 | 楼层下拉独立数据源；展示态/库内态 | [依赖: T-ROOM-CTL-03b, T-ROOM-SVC-02a] | 1h | 筛选后仍可换楼层；过期预订不显示预订色 | 已完成 |
 | T-ROOM-FE-09 | 房态图点击：订单列表+编辑+快速预订/入住 | [依赖: T-ROOM-CTL-03c, T-RES-FE-01, T-STAY-FE-01] | 5h | 查看日无占用可快速办理 | 已完成 |
+| T-ROOM-FE-13 | 房态图「全部在住/预订」一键视图 | [依赖: T-ROOM-CTL-03d, T-ROOM-SVC-02d] | 2h | 开关开启仅显示有在住/有效预订客房；展示态不受查看日限制 | 已完成 |
 
 ### Controller 层任务
 
@@ -197,6 +198,7 @@
 | T-ROOM-CTL-07 | `POST /rooms/{id}/status/dirty` | [依赖: T-ROOM-SVC-04] | 1h | 需 `room:status:dirty` | 已完成 |
 | T-ROOM-CTL-08 | `POST /rooms/{id}/status/clean` | [依赖: T-ROOM-SVC-04] | 1h | 需 `room:status:clean` | 已完成 |
 | T-ROOM-CTL-03c | `GET /rooms/{id}/schedule` | [依赖: T-ROOM-SVC-02c] | 1h | 含 occupiedOnViewDate | 已完成 |
+| T-ROOM-CTL-03d | `GET /rooms/board?allOrders=true` | [依赖: T-ROOM-SVC-02d] | 1h | 仅含在住或有效预订客房 | 已完成 |
 
 ### Service 层任务
 
@@ -211,6 +213,7 @@
 | T-ROOM-SVC-03 | `RoomMaintenanceService`：维修开始/结束 | [依赖: T-ROOM-SVC-04] | 3h | 写 maintenance_log | 已完成 |
 | T-ROOM-SVC-04 | `RoomStateMachine` 状态转换与 assert | [依赖: T-ROOM-SVC-01] | 4h | 非法转换抛 40001 | 已完成 |
 | T-ROOM-SVC-02c | `RoomScheduleService` 客房日程（预订+在住） | [依赖: T-RES-SVC-01, T-STAY-SVC-01] | 3h | fromDate 起未来订单 | 已完成 |
+| T-ROOM-SVC-02d | `RoomBoardService` 全部在住/预订视图（BR-15） | [依赖: T-ROOM-MAP-03] | 2h | 在住优先；过滤无订单客房 | 已完成 |
 
 ### Mapper 层任务
 
@@ -240,6 +243,7 @@
 |------|------|------|------|----------|------|
 | T-ROOM-IT-01 | 房态图接口返回预抵标签 | [依赖: T-ROOM-CTL-03] | 1h | 有当日预订则带标签 | 已完成 |
 | T-ROOM-IT-03 | `GET /board?date=yyyy-MM-dd` 正常返回 | [依赖: T-ROOM-CTL-03a] | 0.5h | code=0 | 已完成 |
+| T-ROOM-IT-04 | `GET /board?allOrders=true` 仅返回在住/预订客房 | [依赖: T-ROOM-CTL-03d] | 1h | 空净无订单客房不出现 | 已完成 |
 | T-ROOM-IT-02 | 维修缺少原因返回 400 | [依赖: T-ROOM-CTL-04] | 0.5h | 校验失败 | 已完成 |
 
 ### 异常情况测试
@@ -754,6 +758,8 @@
 
 **用户操作流程**：按验收用例脚本执行。
 
+**自动化**：`GrmsAcceptanceIntegrationTest`（TC-01～10）、`GrmsExceptionIntegrationTest`（TC-11/12）、`BillingServiceNightCountTest`；`GrmsTestDataCleaner` 保证 H2 用例可重复执行。
+
 ### 前端页面任务
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
@@ -768,8 +774,8 @@
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-QA-SVC-01 | `BillingService` 单元测试：晚数计算 | [依赖: T-BILL-SVC-01] | 2h | 边界日期覆盖 | 待开始 |
-| T-QA-SVC-02 | `RoomStateMachine` 单元测试 | [依赖: T-ROOM-SVC-04] | 2h | 合法/非法迁移 | 待开始 |
+| T-QA-SVC-01 | `BillingService` 单元测试：晚数计算 | [依赖: T-BILL-SVC-01] | 2h | 边界日期覆盖 | 已完成 |
+| T-QA-SVC-02 | `RoomStateMachine` 单元测试 | [依赖: T-ROOM-SVC-04] | 2h | 合法/非法迁移 | 已完成 |
 
 ### Mapper 层任务
 
@@ -779,7 +785,7 @@
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-QA-DB-01 | 测试环境 H2/MySQL test 数据回滚策略 | [依赖: T-INFRA-DB-01] | 2h | `@SpringBootTest` 可重复跑 | 待开始 |
+| T-QA-DB-01 | 测试环境 H2/MySQL test 数据回滚策略 | [依赖: T-INFRA-DB-01] | 2h | `@SpringBootTest` 可重复跑 | 已完成 |
 
 ### 页面测试方法
 
@@ -789,14 +795,14 @@
 
 | 编号 | 任务 | 依赖 | 工时 | 验收标准 | 状态 |
 |------|------|------|------|----------|------|
-| T-QA-IT-01 | 全流程集成测试 TC-01～10 | [依赖: T-SHIFT-CTL-04] | 6h | 全部通过 | 待开始 |
-| T-QA-IT-02 | 异常用例 TC-11/12 | [依赖: T-STAY-CTL-01] | 2h | 拒绝符合 BR | 待开始 |
+| T-QA-IT-01 | 全流程集成测试 TC-01～10 | [依赖: T-SHIFT-CTL-04] | 6h | 全部通过 | 已完成 |
+| T-QA-IT-02 | 异常用例 TC-11/12 | [依赖: T-STAY-CTL-01] | 2h | 拒绝符合 BR | 已完成 |
 
 ### 异常情况测试
 
 已含于 T-QA-IT-02。
 
-**当前状态**：`待开始`
+**当前状态**：`已完成`（T-QA-FE-01 Playwright 仍为可选待开始）
 
 ---
 
@@ -807,6 +813,6 @@ T-INFRA-* → T-AUTH-* → T-ROOM-* → T-RES-* → T-STAY-* + T-BILL-*（已完
 → T-HK-*（已完成）→ T-SHIFT-*（已完成）→ T-STAT-*（已完成）→ T-AUDIT-*（已完成）→ T-QA-*
 ```
 
-**下一执行**：`T-QA`（见 §11）全流程与异常用例。
+**下一执行**：可选 `T-QA-FE-01`（Playwright）；遗留 `T-AUTH-BUG-01`。
 
 **总工时估算（MVP）**：约 **185h**（含测试，不含可选 E2E）

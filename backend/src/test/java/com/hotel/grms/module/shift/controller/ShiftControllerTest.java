@@ -7,6 +7,7 @@ import com.hotel.grms.module.room.dto.RoomRequest;
 import com.hotel.grms.module.room.dto.RoomTypeRequest;
 import com.hotel.grms.module.shift.dto.ShiftCloseRequest;
 import com.hotel.grms.module.stay.dto.WalkInCheckInRequest;
+import com.hotel.grms.support.GrmsTestDataCleaner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -74,15 +75,7 @@ class ShiftControllerTest {
     @Test
     @Order(1)
     void openShiftAndPreviewWithPayment() throws Exception {
-        jdbcTemplate.update("DELETE FROM shift_handover");
-        jdbcTemplate.update("DELETE FROM hk_task");
-        jdbcTemplate.update("DELETE FROM payment");
-        jdbcTemplate.update("DELETE FROM folio_line");
-        jdbcTemplate.update("DELETE FROM folio");
-        jdbcTemplate.update("DELETE FROM stay_guest");
-        jdbcTemplate.update("DELETE FROM stay_order");
-        jdbcTemplate.update("DELETE FROM shift_session");
-
+        GrmsTestDataCleaner.cleanTransactionalData(jdbcTemplate);
         MvcResult openRes = mockMvc.perform(post("/api/v1/shifts/open")
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(jsonPath("$.code").value(0))

@@ -9,6 +9,7 @@ import com.hotel.grms.module.room.dto.RoomTypeRequest;
 import com.hotel.grms.module.billing.dto.CheckInPaymentItem;
 import com.hotel.grms.module.stay.dto.CheckInFromReservationRequest;
 import com.hotel.grms.module.stay.dto.WalkInCheckInRequest;
+import com.hotel.grms.support.GrmsTestDataCleaner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -58,7 +59,7 @@ class StayControllerTest {
 
     @BeforeEach
     void login() throws Exception {
-        jdbcTemplate.update("DELETE FROM shift_session");
+        GrmsTestDataCleaner.cleanTransactionalData(jdbcTemplate);
         LoginRequest request = new LoginRequest();
         request.setUsername("admin");
         request.setPassword("admin123");
@@ -75,7 +76,7 @@ class StayControllerTest {
     @Order(1)
     void walkInRequiresOpenShift() throws Exception {
         Long typeId = createRoomType();
-        Long roomId = createRoom(typeId, "ST901");
+        Long roomId = createRoom(typeId, "ST9" + System.nanoTime());
         WalkInCheckInRequest checkIn = buildWalkIn(roomId);
         mockMvc.perform(post("/api/v1/stays/walk-in")
                         .header("Authorization", "Bearer " + adminToken)
@@ -90,7 +91,7 @@ class StayControllerTest {
     void walkInSuccessAfterOpenShift() throws Exception {
         openShift();
         Long typeId = createRoomType();
-        Long roomId = createRoom(typeId, "ST902");
+        Long roomId = createRoom(typeId, "ST9" + System.nanoTime());
         WalkInCheckInRequest checkIn = buildWalkIn(roomId);
         mockMvc.perform(post("/api/v1/stays/walk-in")
                         .header("Authorization", "Bearer " + adminToken)
@@ -111,7 +112,7 @@ class StayControllerTest {
     void checkInFromReservationSuccess() throws Exception {
         openShift();
         Long typeId = createRoomType();
-        Long roomId = createRoom(typeId, "ST904");
+        Long roomId = createRoom(typeId, "ST9" + System.nanoTime());
         Long reservationId = createReservation(typeId);
         AssignRoomRequest assign = new AssignRoomRequest();
         assign.setRoomId(roomId);

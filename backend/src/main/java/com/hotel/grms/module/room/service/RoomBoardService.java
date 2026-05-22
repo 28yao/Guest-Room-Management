@@ -37,19 +37,30 @@ public class RoomBoardService {
      * @param viewDate 查看日期，null 时使用当天
      * @return 房态图项列表
      */
-    public List<RoomBoardItemDto> loadBoard(Integer floorNo, LocalDate viewDate) {
+    public List<RoomBoardItemDto> loadBoard(Integer floorNo, LocalDate viewDate, boolean allOrders) {
         LocalDate date = viewDate == null ? LocalDate.now() : viewDate;
         LocalDateTime dayStart = date.atStartOfDay();
         LocalDateTime dayEnd = date.plusDays(1).atStartOfDay();
         List<RoomBoardRowDto> rows = roomBoardMapper.selectBoardRows(floorNo, date, dayStart, dayEnd);
         List<RoomBoardItemDto> items = new ArrayList<RoomBoardItemDto>(rows.size());
         for (RoomBoardRowDto row : rows) {
-            items.add(toItem(row));
+            if (allOrders && !hasActiveOrder(row)) {
+                continue;
+            }
+            items.add(toItem(row, allOrders));
         }
         return items;
     }
 
-    private RoomBoardItemDto toItem(RoomBoardRowDto row) {
+    private boolean hasActiveOrder(RoomBoardRowDto row) {
+        return isFlagged(row.getHasActiveStay()) || isFlagged(row.getHasActiveReservation());
+    }
+
+    private boolean isFlagged(Integer value) {
+        return value != null && value == 1;
+    }
+
+    private RoomBoardItemDto toItem(RoomBoardRowDto row, boolean allOrders) {
         String occupancy = RoomStatus.normalizeOccupancy(row.getStatus());
         String clean = resolveCleanStatus(row);
         RoomBoardItemDto item = new RoomBoardItemDto();
@@ -60,7 +71,7 @@ public class RoomBoardService {
         item.setFloorNo(row.getFloorNo());
         item.setOccupancyStatus(occupancy);
         item.setCleanStatus(clean);
-        item.setStatus(resolveDisplayOccupancy(row, occupancy));
+        item.setStatus(resolveDisplayOccupancy(row, occupancy, allOrders));
         item.setVersion(row.getVersion());
         item.setRackRate(row.getRackRate());
         item.setDailyTags(buildTags(row));
@@ -77,9 +88,18 @@ public class RoomBoardService {
         return RoomCleanStatus.CLEAN;
     }
 
-    private String resolveDisplayOccupancy(RoomBoardRowDto row, String occupancy) {
-        boolean reservedOnView = row.getReservedOnViewDate() != null && row.getReservedOnViewDate() == 1;
-        boolean inHouseOnView = row.getInHouseOnViewDate() != null && row.getInHouseOnViewDate() == 1;
+    private String resolveDisplayOccupancy(RoomBoardRowDto row, String occupancy, boolean allOrders) {
+        if (allOrders) {
+            if (isFlagged(row.getHasActiveStay())) {
+                return RoomStatus.OCCUPIED;
+            }
+            if (isFlagged(row.getHasActiveReservation())) {
+                return RoomStatus.RESERVED;
+            }
+            return occupancy;
+        }
+        boolean reservedOnView = isFlagged(row.getReservedOnViewDate());
+        boolean inHouseOnView = isFlagged(row.getInHouseOnViewDate());
         if (inHouseOnView) {
             return RoomStatus.OCCUPIED;
         }

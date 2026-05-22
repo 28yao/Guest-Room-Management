@@ -10,14 +10,25 @@
         style="width: 150px"
         @change="load"
       />
-      <el-button link type="primary" @click="setToday">今天</el-button>
+      <el-button link type="primary" :disabled="allOrdersMode" @click="setToday">今天</el-button>
+      <el-button
+        :type="allOrdersMode ? 'primary' : 'default'"
+        @click="toggleAllOrdersMode"
+      >
+        全部在住/预订
+      </el-button>
       <el-select v-model="floorFilter" clearable placeholder="全部楼层" style="width: 140px" @change="load">
         <el-option v-for="f in floors" :key="f" :label="`${f} 层`" :value="f" />
       </el-select>
       <el-button @click="load">刷新</el-button>
-      <span class="date-hint">展示态按 {{ viewDate }} 与预订/在住日期计算；操作以库内实时状态为准</span>
+      <span v-if="allOrdersMode" class="date-hint">
+        已筛选 {{ items.length }} 间有在住或有效预订；预抵/预离仍按 {{ viewDate }}；操作以库内实时状态为准
+      </span>
+      <span v-else class="date-hint">展示态按 {{ viewDate }} 与预订/在住日期计算；操作以库内实时状态为准</span>
     </div>
-    <div v-if="items.length === 0" class="empty">暂无客房，请先在「客房管理」中维护房号</div>
+    <div v-if="items.length === 0" class="empty">
+      {{ allOrdersMode ? '当前无在住或有效预订客房' : '暂无客房，请先在「客房管理」中维护房号' }}
+    </div>
     <div v-else class="board">
       <div
         v-for="room in items"
@@ -68,7 +79,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="orderNo" label="单号" width="150" />
+        <el-table-column prop="guestPhone" label="联系电话" width="130" />
         <el-table-column prop="guestName" label="客人" width="90" />
         <el-table-column label="入住/离店" min-width="200">
           <template #default="{ row }">{{ formatOrderRange(row) }}</template>
@@ -76,55 +87,57 @@
         <el-table-column label="状态" width="88">
           <template #default="{ row }">{{ orderStatusLabel(row) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="320" fixed="right">
+        <el-table-column label="操作" min-width="120" class-name="schedule-ops-col">
           <template #default="{ row }">
-            <el-button v-if="row.editable" link type="primary" @click="openEditOrder(row)">修改</el-button>
-            <el-button
-              v-if="row.orderType === 'RESERVATION' && canCheckIn && isResCheckInable(row.status)"
-              link
-              type="success"
-              @click="openResCheckInFromOrder(row)"
-            >
-              预订入住
-            </el-button>
-            <el-button
-              v-if="row.orderType === 'STAY' && row.status === 'IN_HOUSE' && canChangeRoom"
-              link
-              type="primary"
-              @click="openChangeRoomFromOrder(row)"
-            >
-              换房
-            </el-button>
-            <el-button
-              v-if="row.orderType === 'STAY' && row.status === 'IN_HOUSE' && canCheckout"
-              link
-              type="primary"
-              @click="confirmCheckoutFromOrder(row)"
-            >
-              退房
-            </el-button>
-            <el-button
-              v-if="row.orderType === 'STAY' && row.status === 'IN_HOUSE' && canVoidCheckout"
-              link
-              type="danger"
-              @click="openVoidFromOrder(row)"
-            >
-              退款
-            </el-button>
-            <el-button
-              v-if="row.orderType === 'RESERVATION' && canManageRes && isResCancellable(row.status)"
-              link
-              type="danger"
-              @click="openCancelRefundFromOrder(row)"
-            >
-              退款
-            </el-button>
+            <div class="schedule-order-actions">
+              <el-button v-if="row.editable" link type="primary" @click="openEditOrder(row)">修改</el-button>
+              <el-button
+                v-if="row.orderType === 'RESERVATION' && canCheckIn && isResCheckInable(row.status)"
+                link
+                type="success"
+                @click="openResCheckInFromOrder(row)"
+              >
+                预订入住
+              </el-button>
+              <el-button
+                v-if="row.orderType === 'STAY' && row.status === 'IN_HOUSE' && canChangeRoom"
+                link
+                type="primary"
+                @click="openChangeRoomFromOrder(row)"
+              >
+                换房
+              </el-button>
+              <el-button
+                v-if="row.orderType === 'STAY' && row.status === 'IN_HOUSE' && canCheckout"
+                link
+                type="primary"
+                @click="confirmCheckoutFromOrder(row)"
+              >
+                退房
+              </el-button>
+              <el-button
+                v-if="row.orderType === 'STAY' && row.status === 'IN_HOUSE' && canVoidCheckout"
+                link
+                type="danger"
+                @click="openVoidFromOrder(row)"
+              >
+                退款
+              </el-button>
+              <el-button
+                v-if="row.orderType === 'RESERVATION' && canManageRes && isResCancellable(row.status)"
+                link
+                type="danger"
+                @click="openCancelRefundFromOrder(row)"
+              >
+                退款
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
 
-      <div v-if="!schedule?.occupiedOnViewDate" class="quick-actions">
-        <span class="section-title">快速办理（查看日无占用）</span>
+      <div class="quick-actions">
+        <span class="section-title">快速办理</span>
         <el-button
           v-if="auth.hasPermission('reservation:manage')"
           type="primary"
@@ -133,17 +146,28 @@
         >
           快速预订
         </el-button>
-        <el-button
-          v-if="auth.hasPermission('stay:checkin') && canWalkIn"
-          type="success"
-          size="small"
-          @click="openQuickWalkIn"
+        <span
+          v-if="auth.hasPermission('reservation:manage') && schedule?.occupiedOnViewDate"
+          class="hint-inline"
         >
-          快速 Walk-in 入住
-        </el-button>
-        <span v-if="auth.hasPermission('stay:checkin') && !canWalkIn" class="hint-inline">
-          仅空房/预订且净房可 Walk-in（当前库内 {{ occupancyLabel(roomOccupancyStatus) }} ·
-          {{ cleanLabel(roomCleanStatus) }}）
+          查看日已有订单，仍可预订其他不重叠日期
+        </span>
+        <template v-if="!schedule?.occupiedOnViewDate">
+          <el-button
+            v-if="auth.hasPermission('stay:checkin') && canWalkIn"
+            type="success"
+            size="small"
+            @click="openQuickWalkIn"
+          >
+            快速 Walk-in 入住
+          </el-button>
+          <span v-if="auth.hasPermission('stay:checkin') && !canWalkIn" class="hint-inline">
+            仅空房/预订且净房可 Walk-in（当前库内 {{ occupancyLabel(roomOccupancyStatus) }} ·
+            {{ cleanLabel(roomCleanStatus) }}）
+          </span>
+        </template>
+        <span v-else-if="auth.hasPermission('stay:checkin')" class="hint-inline">
+          Walk-in 须查看日无预订/在住占用
         </span>
       </div>
 
@@ -584,6 +608,7 @@ const items = ref<RoomBoardItem[]>([])
 const floors = ref<number[]>([])
 const floorFilter = ref<number | undefined>()
 const viewDate = ref(todayString())
+const allOrdersMode = ref(false)
 const actionVisible = ref(false)
 const selected = ref<RoomBoardItem | null>(null)
 const schedule = ref<RoomScheduleVO | null>(null)
@@ -820,13 +845,18 @@ function setToday() {
   load()
 }
 
+function toggleAllOrdersMode() {
+  allOrdersMode.value = !allOrdersMode.value
+  load()
+}
+
 async function loadFloors() {
   const res = await listRoomFloorsApi()
   floors.value = res.data.data || []
 }
 
 async function load() {
-  const res = await getRoomBoardApi(floorFilter.value, viewDate.value)
+  const res = await getRoomBoardApi(floorFilter.value, viewDate.value, allOrdersMode.value)
   items.value = res.data.data
 }
 
@@ -1541,6 +1571,21 @@ onMounted(async () => {
   font-weight: 600;
   margin: 8px 0;
   font-size: 14px;
+}
+.schedule-order-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  max-width: 100%;
+}
+.schedule-order-actions .el-button {
+  margin: 0;
+  padding: 0 2px;
+  height: auto;
+}
+:deep(.schedule-ops-col .cell) {
+  padding: 6px 8px;
 }
 .quick-actions {
   margin-top: 12px;

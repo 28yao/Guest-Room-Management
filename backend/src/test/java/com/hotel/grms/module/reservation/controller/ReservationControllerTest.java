@@ -122,6 +122,42 @@ class ReservationControllerTest {
     }
 
     @Test
+    void nonOverlappingAssignSameRoomAllowed() throws Exception {
+        Long typeId = createRoomType();
+        Long roomId = createRoom(typeId, "906");
+        Long resLater = createReservation(typeId, LocalDate.of(2026, 5, 26), LocalDate.of(2026, 5, 27));
+        AssignRoomRequest assign = new AssignRoomRequest();
+        assign.setRoomId(roomId);
+        mockMvc.perform(post("/api/v1/reservations/" + resLater + "/assign-room")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(assign)))
+                .andExpect(jsonPath("$.code").value(0));
+        ReservationCreateRequest earlierReq = new ReservationCreateRequest();
+        earlierReq.setGuestName("早到客人");
+        earlierReq.setGuestPhone("13800003333");
+        earlierReq.setRoomTypeId(typeId);
+        earlierReq.setArrivalDate(LocalDate.of(2026, 5, 23));
+        earlierReq.setDepartureDate(LocalDate.of(2026, 5, 24));
+        earlierReq.setArrivalAt(LocalDateTime.of(2026, 5, 23, 18, 0));
+        earlierReq.setDepartureAt(LocalDateTime.of(2026, 5, 24, 12, 0));
+        MvcResult earlierRes = mockMvc.perform(post("/api/v1/reservations")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(earlierReq)))
+                .andExpect(jsonPath("$.code").value(0))
+                .andReturn();
+        Long resEarlier = objectMapper.readTree(earlierRes.getResponse().getContentAsString())
+                .path("data").path("id").asLong();
+        mockMvc.perform(post("/api/v1/reservations/" + resEarlier + "/assign-room")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(assign)))
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.roomId").value(roomId.intValue()));
+    }
+
+    @Test
     void cleaningBufferRejectsAssignWithinOneHour() throws Exception {
         Long typeId = createRoomType();
         Long roomId = createRoom(typeId, "905");

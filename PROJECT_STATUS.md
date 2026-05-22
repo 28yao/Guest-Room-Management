@@ -11,7 +11,7 @@
 | 技术方案 | [specs/plan.md](./specs/plan.md) v1.0 |
 | 任务清单 | [specs/tasks.md](./specs/tasks.md) |
 | 手动验收 | [docs/MANUAL_ACCEPTANCE.md](./docs/MANUAL_ACCEPTANCE.md) |
-| 最后更新 | 2026-05-22（MOD-HK / MOD-SHIFT / MOD-STAT；文档与 V16/V17 对齐） |
+| 最后更新 | 2026-05-22（MOD-QA 验收自动化；换房 BR-06 日价同步） |
 
 ### 文档对齐关系
 
@@ -20,7 +20,7 @@
 | [README](./README.md) | 模块进度表、SQL V1～V17、菜单路径与权限码、快速验证步骤 |
 | [tasks.md](./specs/tasks.md) | 任务状态与 §1～§9 模块；附录执行顺序 |
 | [plan.md](./specs/plan.md) | API/权限码/前端路由（§4.2、§6、§7） |
-| [MANUAL_ACCEPTANCE](./docs/MANUAL_ACCEPTANCE.md) | 已交付 §一～§九；未交付 MOD-AUDIT |
+| [MANUAL_ACCEPTANCE](./docs/MANUAL_ACCEPTANCE.md) | 已交付 §一～§十；TC-01～12 有后端自动化 |
 | [spec.md](./specs/spec.md) | 业务需求基线（变更时先改此文） |
 
 ## 整体架构快照
@@ -49,7 +49,7 @@
     手动释放/取消                                                              交班汇总收款与待办
 ```
 
-**代码现状**：MOD-INFRA～MOD-AUDIT 首批已完成；下一 **T-QA** 全流程验收。
+**代码现状**：MOD-INFRA～MOD-QA 首批已完成；可选 **T-QA-FE-01** Playwright E2E。
 
 ### 近期交付摘要（MOD-HK + MOD-SHIFT + MOD-STAT）
 
@@ -86,8 +86,8 @@
 | 交班（MOD-SHIFT） | 已完成（首批） | 开班/预览/结班/待办阻断 |
 | 统计（MOD-STAT） | 已完成（首批） | `/stats` 出租率+区间营收 |
 | 审计（MOD-AUDIT） | 已完成（首批） | `/system/audit` 查询；切面写入关键操作 |
-| 集成测试 / QA | 待开始 | T-QA TC-01～12 |
-| 集成测试与验收（T-QA） | 待开始 | TC-01～12 |
+| 集成测试 / QA | 已完成（首批） | `GrmsAcceptanceIntegrationTest` TC-01～10；`GrmsExceptionIntegrationTest` TC-11/12 |
+| 集成测试与验收（T-QA） | 已完成（首批） | 全量 `mvn test` 75 用例；可选 E2E 未做 |
 
 ## 风险与阻塞点
 

@@ -59,16 +59,18 @@ public class RoomController {
     /**
      * 房态图。
      *
-     * @param floorNo 楼层
-     * @param date    查看日期（预抵/预离标签），默认当天
+     * @param floorNo   楼层
+     * @param date      查看日期（预抵/预离标签），默认当天
+     * @param allOrders true 时仅返回有在住或有效预订的客房，展示态不受查看日限制（BR-15）
      * @return 房态图项
      */
     @GetMapping("/board")
     @PreAuthorize("hasAuthority('room:board:view')")
     public R<List<RoomBoardItemDto>> board(
             @RequestParam(required = false) Integer floorNo,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return R.ok(roomBoardService.loadBoard(floorNo, date));
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false, defaultValue = "false") boolean allOrders) {
+        return R.ok(roomBoardService.loadBoard(floorNo, date, allOrders));
     }
 
     /**

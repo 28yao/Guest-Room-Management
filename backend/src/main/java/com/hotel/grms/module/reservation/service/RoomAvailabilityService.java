@@ -155,8 +155,8 @@ public class RoomAvailabilityService {
         }
 
         String occupancy = RoomStatus.normalizeOccupancy(room.getStatus());
-        if (!RoomStatus.VACANT.equals(occupancy)) {
-            throw new BusinessException(40001, "客房当前占用态不可预排房");
+        if (RoomStatus.OUT_OF_ORDER.equals(occupancy)) {
+            throw new BusinessException(40001, "客房维修中不可预排房");
         }
 
     }
@@ -188,7 +188,7 @@ public class RoomAvailabilityService {
         ReservationTimePolicy.assertValidRange(arrivalAt, departureAt);
 
         LambdaQueryWrapper<Room> wrapper = new LambdaQueryWrapper<Room>()
-                .eq(Room::getStatus, RoomStatus.VACANT)
+                .in(Room::getStatus, RoomStatus.VACANT, RoomStatus.RESERVED)
                 .eq(Room::getCleanStatus, RoomCleanStatus.CLEAN)
                 .orderByAsc(Room::getFloorNo)
 

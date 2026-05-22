@@ -189,6 +189,8 @@ operation_log (业务_id 多态)
 |------|--------|
 | 查看日落在在住 `arrival_date~departure_date` 内 | `OCCUPIED`（优先于库内脏/空净） |
 | 查看日落在有效预订占用区间且已 `room_id` | `RESERVED`（优先于库内脏/空净） |
+| `allOrders=true`：存在 `IN_HOUSE` 在住 | `OCCUPIED`（不受查看日限制） |
+| `allOrders=true`：无在住但有有效预订（已排房、未离店） | `RESERVED` |
 | 库内 `RESERVED` 但查看日不在上述区间 | `VACANT`（展示用） |
 | 库内 `OCCUPIED` 但查看日不在在住区间 | `VACANT`（展示用） |
 | 其他 | 与库内占用态一致 |
@@ -476,7 +478,7 @@ CREATE TABLE shift_session (
 |--------|------|------|------|------|
 | API-ROOM-01 | CRUD | `/room-types` | `room:type:manage` | §5.1 |
 | API-ROOM-02 | CRUD | `/rooms` | `room:manage` | §5.2 |
-| API-ROOM-03 | GET | `/rooms/board` | 登录 | §5.3；`status` 展示占用态；`occupancyStatus`+`cleanStatus` 库内双维；`daily_tags`；`date` 默认当天 |
+| API-ROOM-03 | GET | `/rooms/board` | 登录 | §5.3；`status` 展示占用态；`occupancyStatus`+`cleanStatus` 库内双维；`daily_tags`；`date` 默认当天；`allOrders=true` 仅返回有在住/有效预订的客房（BR-15） |
 | API-ROOM-03b | GET | `/rooms/floors` | 登录 | 全部楼层列表（房态图筛选用） |
 | API-ROOM-03c | GET | `/rooms/{id}/schedule?fromDate=` | 登录 | 客房日程：当前及未来预订/在住；`occupiedOnViewDate` |
 | API-ROOM-04 | POST | `/rooms/{id}/maintenance` | `room:status:maintenance` | BR-11 |
@@ -584,7 +586,7 @@ CREATE TABLE shift_session (
 ### 7.2 房态图组件 `RoomBoard.vue`
 
 - 格子：房号、**展示态**色块、标签（预抵/预离）；**占用态 + 保洁态** 双标签（V14）
-- 筛选：楼层（下拉来自 `/rooms/floors`）、**查看日期**（默认今天）
+- 筛选：楼层（下拉来自 `/rooms/floors`）、**查看日期**（默认今天）、**全部在住/预订** 开关（`allOrders=true`，与查看日展示态解耦，仍用查看日算预抵/预离）
 - 点击客房：日程订单列表；行内 **预订入住** / **退款** / **换房** / **退房**（权限控制）
 - 快捷操作：**退房**（在住）、净/脏一键切换
 - 查看日无占用：**快速预订**、**快速 Walk-in**（`payments[]` 收齐应付）

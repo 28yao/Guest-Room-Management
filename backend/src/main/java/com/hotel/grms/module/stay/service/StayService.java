@@ -268,6 +268,10 @@ public class StayService {
                 request.getTargetRoomVersion());
         stay.setRoomId(request.getTargetRoomId());
         stay.setRoomTypeId(target.getRoomTypeId());
+        RoomType targetType = roomTypeService.getById(target.getRoomTypeId());
+        if (targetType != null && targetType.getRackRate() != null) {
+            stay.setAgreedDailyRate(targetType.getRackRate());
+        }
         stayOrderMapper.updateById(stay);
         billingService.recalculateFullStay(id);
         StayResponse response = getById(id);

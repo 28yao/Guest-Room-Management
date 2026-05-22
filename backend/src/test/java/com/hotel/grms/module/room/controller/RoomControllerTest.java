@@ -143,6 +143,43 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.data[?(@.id==" + roomId + ")].occupancyStatus").value("OCCUPIED"));
     }
 
+    /**
+     * 全部在住/预订视图：查看日外在住仍展示在住，且无订单空房不出现。
+     */
+    @Test
+    void boardAllOrdersShowsActiveInHouseAndFiltersVacant() throws Exception {
+        mockMvc.perform(post("/api/v1/shifts/open").header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$.code").value(0));
+        Long typeId = createRoomType();
+        Long occupiedRoomId = createRoom(typeId, "AO1");
+        Long vacantRoomId = createRoom(typeId, "AO2");
+        WalkInCheckInRequest checkIn = new WalkInCheckInRequest();
+        checkIn.setRoomId(occupiedRoomId);
+        checkIn.setGuestName("全览在住");
+        checkIn.setGuestPhone("13800005555");
+        checkIn.setArrivalDate(LocalDate.of(2026, 6, 10));
+        checkIn.setDepartureDate(LocalDate.of(2026, 6, 12));
+        checkIn.setAgreedDailyRate(new BigDecimal("200"));
+        List<CheckInPaymentItem> payments = new ArrayList<CheckInPaymentItem>();
+        CheckInPaymentItem pay = new CheckInPaymentItem();
+        pay.setMethod("CASH");
+        pay.setAmount(new BigDecimal("400"));
+        payments.add(pay);
+        checkIn.setPayments(payments);
+        mockMvc.perform(post("/api/v1/stays/walk-in")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(checkIn)))
+                .andExpect(jsonPath("$.code").value(0));
+        mockMvc.perform(get("/api/v1/rooms/board")
+                        .param("date", "2026-06-20")
+                        .param("allOrders", "true")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data[?(@.id==" + occupiedRoomId + ")].status").value("OCCUPIED"))
+                .andExpect(jsonPath("$.data[?(@.id==" + vacantRoomId + ")]").isEmpty());
+    }
+
     @Test
     void boardShowsReservationWhenRoomDirtyOnViewDate() throws Exception {
         Long typeId = createRoomType();

@@ -17,7 +17,7 @@
 
 | 模块 | 状态 | 说明 |
 |------|------|------|
-| MOD-INFRA | 已完成 | 工程骨架、SQL V1～V17、健康检查 |
+| MOD-INFRA | 已完成 | 工程骨架、SQL V1～V18、健康检查 |
 | MOD-AUTH | 已完成 | 登录/JWT/RBAC；用户改密/删除、角色/直授 **恢复默认** |
 | MOD-ROOM | 已完成 | 房态图双维标签；房型/客房；维修；净/脏切换（V14）；强制改态 |
 | MOD-RES | 已完成 | 预订 CRUD、预排房、释放/取消、退订退款（V11）、可售查询 |
@@ -27,7 +27,7 @@
 | MOD-SHIFT | 已完成（首批） | 开班/结班预览/关闭；待办阻断与强制结班 |
 | MOD-STAT | 已完成（首批） | 出租率快照、区间营收；`/stats`（`stat:view`） |
 | MOD-AUDIT | 已完成（首批） | 操作审计 `/system/audit`（`audit:view`） |
-| MOD-QA 及以后 | 待开发 | 见 [tasks.md](./specs/tasks.md) §11 |
+| MOD-QA | 已完成（首批） | `mvn test` 覆盖 plan TC-01～12；可选 E2E 未做 |
 
 **默认账号**（`sql/V2__seed_data.sql`）：`admin` / `admin123`（管理员）；`hk01` / `admin123`（保洁，仅保洁任务）
 
@@ -163,7 +163,7 @@ npm run dev
 
 | 菜单/页面 | 路径 | 权限要点 |
 |-----------|------|----------|
-| 房态图 | `/rooms/board` | `room:board:view`（**保洁角色无**）；日程内预订入住/退房等 |
+| 房态图 | `/rooms/board` | `room:board:view`（**保洁角色无**）；**全部在住/预订** 一键筛选；日程内预订入住/退房等 |
 | 客房管理 | `/rooms` | `room:manage` |
 | 房型管理 | `/room-types` | `room:type:manage` |
 | 用户管理 | `/system/users` | `system:user:manage`；含 **修改密码**、**删除用户** |
@@ -183,7 +183,22 @@ npm run dev
 3. 房型/客房 CRUD，房态图筛选、维修、净/脏切换、强制改态。  
 4. **开班** → 办理入住或房态图 Walk-in/预订入住（收款=应付）→ 在住 **退房** 或 **退款** → 保洁 **完成打扫** → **结班**（见 MOD-SHIFT）。  
 5. 店长/管理员查看 **经营统计** `/stats`（MOD-STAT）。  
-6. 完整用例见 [手动验收清单](./docs/MANUAL_ACCEPTANCE.md)（§一～§九）。
+6. 完整用例见 [手动验收清单](./docs/MANUAL_ACCEPTANCE.md)（§一～§十）。  
+7. **自动化验收**：`cd backend && mvn test`（H2，75 用例；含 `GrmsAcceptanceIntegrationTest` TC-01～10）。
+
+### 后端测试
+
+```bash
+cd backend
+mvn test
+```
+
+| 测试类 | 覆盖 |
+|--------|------|
+| `GrmsAcceptanceIntegrationTest` | plan TC-01～TC-10 |
+| `GrmsExceptionIntegrationTest` | TC-11/TC-12 |
+| `BillingServiceNightCountTest` | 按晚计费边界 |
+| 各模块 `*ControllerTest` | 模块级 IT |
 
 ## 贡献规范
 

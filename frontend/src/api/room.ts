@@ -78,13 +78,16 @@ export function getRoomScheduleApi(roomId: number, fromDate?: string) {
   return request.get<{ data: RoomScheduleVO }>(`/rooms/${roomId}/schedule`, { params })
 }
 
-export function getRoomBoardApi(floorNo?: number, viewDate?: string) {
-  const params: Record<string, string | number> = {}
+export function getRoomBoardApi(floorNo?: number, viewDate?: string, allOrders?: boolean) {
+  const params: Record<string, string | number | boolean> = {}
   if (floorNo != null) {
     params.floorNo = floorNo
   }
   if (viewDate) {
     params.date = viewDate
+  }
+  if (allOrders) {
+    params.allOrders = true
   }
   return request.get<{ data: RoomBoardItem[] }>('/rooms/board', { params })
 }

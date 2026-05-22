@@ -24,6 +24,8 @@ public class RoomBoardRowDto {
     private Integer reservedOnViewDate;
     private Integer expectedResDeparture;
     private Integer inHouseOnViewDate;
+    private Integer hasActiveStay;
+    private Integer hasActiveReservation;
 
     public Long getRoomId() {
         return roomId;
@@ -135,5 +137,21 @@ public class RoomBoardRowDto {
 
     public void setInHouseOnViewDate(Integer inHouseOnViewDate) {
         this.inHouseOnViewDate = inHouseOnViewDate;
+    }
+
+    public Integer getHasActiveStay() {
+        return hasActiveStay;
+    }
+
+    public void setHasActiveStay(Integer hasActiveStay) {
+        this.hasActiveStay = hasActiveStay;
+    }
+
+    public Integer getHasActiveReservation() {
+        return hasActiveReservation;
+    }
+
+    public void setHasActiveReservation(Integer hasActiveReservation) {
+        this.hasActiveReservation = hasActiveReservation;
     }
 }
