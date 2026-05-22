@@ -1,6 +1,8 @@
 <template>
   <div>
-    <h3>角色权限配置</h3>
+    <div class="toolbar">
+      <h3>角色权限配置</h3>
+    </div>
     <p class="hint">
       保存后对该角色下<strong>已分配该角色</strong>的用户生效；请同时在「用户管理」中为用户勾选对应角色。
       房态图（<code>room:board:view</code>）、在住管理（<code>stay:in_house:view</code>）默认授予管理员/店长/前台，<strong>不授予保洁</strong>。
@@ -94,16 +96,6 @@ onMounted(loadRoles)
 
 <style scoped>
 .hint {
-  color: #909399;
-  font-size: 13px;
-  margin: 0 0 8px;
-}
-.perm-row {
-  margin: 8px 0;
-}
-.actions {
-  margin-top: 16px;
-  display: flex;
-  gap: 12px;
+  margin: 0 0 12px;
 }
 </style>

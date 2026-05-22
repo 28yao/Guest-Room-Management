@@ -385,23 +385,3 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-.filters {
-  margin-bottom: 12px;
-}
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-.hint {
-  color: #909399;
-  font-size: 13px;
-  margin-bottom: 12px;
-}
-</style>

@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -45,6 +46,9 @@ class RoomControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     private String adminToken;
 
@@ -268,12 +272,17 @@ class RoomControllerTest {
     @Test
     void toggleCleanDirtySuccess() throws Exception {
         Long roomId = createRoom();
+        jdbcTemplate.update("DELETE FROM hk_task WHERE room_id = ?", roomId);
         mockMvc.perform(post("/api/v1/rooms/" + roomId + "/status/toggle-clean-dirty")
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.status").value("VACANT"))
                 .andExpect(jsonPath("$.data.cleanStatus").value("DIRTY"));
+        Integer pending = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM hk_task WHERE room_id = ? AND status = 'PENDING'",
+                Integer.class, roomId);
+        org.junit.jupiter.api.Assertions.assertEquals(1, pending.intValue());
         mockMvc.perform(post("/api/v1/rooms/" + roomId + "/status/toggle-clean-dirty")
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())

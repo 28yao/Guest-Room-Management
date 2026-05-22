@@ -95,7 +95,7 @@ public class HousekeepingService {
     }
 
     /**
-     * 完成保洁：关闭任务并将客房保洁态置净（占用态须为空房）。
+     * 完成保洁：关闭任务并将客房保洁态置净（不改变占用态；在住客房不可完成）。
      *
      * @param taskId 任务 ID
      * @return 已完成任务
@@ -114,8 +114,8 @@ public class HousekeepingService {
         }
         Room room = roomService.getById(task.getRoomId());
         String occupancy = RoomStatus.normalizeOccupancy(room.getStatus());
-        if (RoomStatus.OCCUPIED.equals(occupancy) || RoomStatus.RESERVED.equals(occupancy)) {
-            throw new BusinessException(40001, "客房仍在占用，无法完成保洁");
+        if (RoomStatus.OCCUPIED.equals(occupancy)) {
+            throw new BusinessException(40001, "客房在住中，无法完成保洁");
         }
         roomService.markClean(task.getRoomId(), null);
         task.setStatus(HkTaskStatus.COMPLETED);

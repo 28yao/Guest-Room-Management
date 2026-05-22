@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hotel.grms.module.auth.dto.LoginRequest;
 import com.hotel.grms.module.billing.dto.CheckInPaymentItem;
+import com.hotel.grms.module.reservation.dto.AssignRoomRequest;
+import com.hotel.grms.module.reservation.dto.ReservationCreateRequest;
 import com.hotel.grms.module.room.dto.RoomRequest;
 import com.hotel.grms.module.room.dto.RoomTypeRequest;
 import com.hotel.grms.module.stay.dto.WalkInCheckInRequest;
@@ -120,6 +122,34 @@ class HousekeepingControllerTest {
 
     @Test
     @Order(3)
+    void completeTaskOnReservedDirtyRoomKeepsReserved() throws Exception {
+        Long typeId = createRoomType();
+        Long reservedRoomId = createRoom(typeId, "HKR" + roomSeq++);
+        Long reservationId = createReservation(typeId);
+        assignRoom(reservationId, reservedRoomId);
+        mockMvc.perform(post("/api/v1/rooms/" + reservedRoomId + "/status/toggle-clean-dirty")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.cleanStatus").value("DIRTY"));
+        Long pendingTaskId = jdbcTemplate.queryForObject(
+                "SELECT id FROM hk_task WHERE room_id = ? AND status = 'PENDING'",
+                Long.class, reservedRoomId);
+        mockMvc.perform(post("/api/v1/hk/tasks/" + pendingTaskId + "/complete")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+        String cleanStatus = jdbcTemplate.queryForObject(
+                "SELECT clean_status FROM room WHERE id = ?",
+                String.class, reservedRoomId);
+        String occupancy = jdbcTemplate.queryForObject(
+                "SELECT status FROM room WHERE id = ?",
+                String.class, reservedRoomId);
+        org.junit.jupiter.api.Assertions.assertEquals("CLEAN", cleanStatus);
+        org.junit.jupiter.api.Assertions.assertEquals("RESERVED", occupancy);
+    }
+
+    @Test
+    @Order(4)
     void completeAgainReturns409() throws Exception {
         mockMvc.perform(post("/api/v1/hk/tasks/" + taskId + "/complete")
                         .header("Authorization", "Bearer " + adminToken))
@@ -176,6 +206,32 @@ class HousekeepingControllerTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asLong();
+    }
+
+    private Long createReservation(Long typeId) throws Exception {
+        ReservationCreateRequest req = new ReservationCreateRequest();
+        req.setGuestName("预订客人");
+        req.setGuestPhone("13900002222");
+        req.setRoomTypeId(typeId);
+        req.setArrivalDate(LocalDate.now().plusDays(1));
+        req.setDepartureDate(LocalDate.now().plusDays(3));
+        MvcResult result = mockMvc.perform(post("/api/v1/reservations")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(jsonPath("$.code").value(0))
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asLong();
+    }
+
+    private void assignRoom(Long reservationId, Long roomId) throws Exception {
+        AssignRoomRequest assign = new AssignRoomRequest();
+        assign.setRoomId(roomId);
+        mockMvc.perform(post("/api/v1/reservations/" + reservationId + "/assign-room")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(assign)))
+                .andExpect(jsonPath("$.code").value(0));
     }
 
     private Long createRoom(Long typeId, String roomNo) throws Exception {

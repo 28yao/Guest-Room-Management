@@ -312,19 +312,8 @@ async function submitVoidCheckout() {
 </script>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-.toolbar-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
 .paid-hint {
-  color: #909399;
+  color: var(--grms-text-muted);
   font-size: 12px;
 }
 .form-hint {

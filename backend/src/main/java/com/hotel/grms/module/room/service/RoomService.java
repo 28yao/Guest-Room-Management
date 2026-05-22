@@ -196,6 +196,9 @@ public class RoomService {
                 ? RoomCleanStatus.CLEAN : RoomCleanStatus.DIRTY;
         room.setCleanStatus(next);
         updateWithOptimisticLock(room);
+        if (RoomCleanStatus.DIRTY.equals(next)) {
+            housekeepingService.createTaskOnDirty(roomId);
+        }
         return roomMapper.selectById(roomId);
     }
 
@@ -215,6 +218,9 @@ public class RoomService {
         applyForceTarget(room, request.getTargetStatus());
         updateWithOptimisticLock(room);
         Room updated = roomMapper.selectById(roomId);
+        if (RoomCleanStatus.DIRTY.equals(updated.getCleanStatus())) {
+            housekeepingService.createTaskOnDirty(roomId);
+        }
         AuditContextHolder.bind(roomId, beforeJson,
                 auditJsonHelper.pairs("status", updated.getStatus(), "cleanStatus", updated.getCleanStatus(),
                         "targetStatus", request.getTargetStatus(), "reason", request.getReason()),

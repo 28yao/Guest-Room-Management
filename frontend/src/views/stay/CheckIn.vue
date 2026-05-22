@@ -450,30 +450,11 @@ async function submitResCheckIn() {
 </script>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
 .shift-bar {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-.filters {
-  margin-bottom: 12px;
-}
-.hint {
-  font-size: 12px;
-  color: #909399;
-  margin-top: 4px;
-  margin-left: 8px;
-}
-.charge-total {
-  font-size: 18px;
-  font-weight: 600;
-  color: #e6a23c;
+  flex-wrap: wrap;
 }
 .pay-row {
   display: flex;

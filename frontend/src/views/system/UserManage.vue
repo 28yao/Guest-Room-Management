@@ -219,15 +219,3 @@ async function save() {
 onMounted(load)
 </script>
 
-<style scoped>
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-.pwd-user {
-  margin: 0 0 12px;
-  color: #606266;
-}
-</style>

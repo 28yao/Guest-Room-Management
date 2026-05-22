@@ -186,28 +186,11 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-.toolbar-actions {
-  display: flex;
-  gap: 8px;
-}
-.status-card,
-.section-card {
-  margin-bottom: 16px;
-}
 .close-row {
   display: flex;
   align-items: center;
   gap: 16px;
   margin-bottom: 24px;
-}
-.hint {
-  color: #909399;
-  font-size: 13px;
+  flex-wrap: wrap;
 }
 </style>

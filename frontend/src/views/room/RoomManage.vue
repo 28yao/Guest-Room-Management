@@ -134,11 +134,3 @@ async function save() {
 onMounted(load)
 </script>
 
-<style scoped>
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-</style>

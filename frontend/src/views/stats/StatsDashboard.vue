@@ -150,27 +150,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-.stat-label {
-  color: #909399;
-  font-size: 13px;
-}
-.stat-value {
-  font-size: 28px;
-  font-weight: 600;
-  margin-top: 8px;
-}
-.stat-value.accent {
-  color: #409eff;
-}
-.section-card {
-  margin-top: 16px;
-}
 .revenue-header {
   display: flex;
   align-items: center;

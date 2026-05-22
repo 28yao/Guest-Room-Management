@@ -1499,37 +1499,40 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.date-hint {
-  font-size: 12px;
-  color: #909399;
-}
 .board {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
 }
 .room-card {
-  width: 120px;
-  padding: 10px;
-  border: 3px solid #ddd;
-  border-radius: 8px;
+  width: 128px;
+  padding: 12px 10px;
+  border: 2px solid var(--grms-border);
+  border-radius: var(--grms-radius-sm);
   cursor: pointer;
-  background: #fff;
+  background: var(--grms-surface);
+  box-shadow: var(--grms-shadow-sm);
+  transition: box-shadow var(--grms-transition), border-color var(--grms-transition),
+    transform var(--grms-transition);
+}
+.room-card:hover {
+  box-shadow: var(--grms-shadow);
+  border-color: #93c5fd;
+  transform: translateY(-2px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .room-card:hover {
+    transform: none;
+  }
 }
 .room-no {
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 700;
+  color: var(--grms-text);
 }
 .room-type {
   font-size: 12px;
-  color: #666;
+  color: var(--grms-text-muted);
   margin: 4px 0;
 }
 .card-tags {
@@ -1540,7 +1543,7 @@ onMounted(async () => {
 }
 .card-actual {
   font-size: 11px;
-  color: #606266;
+  color: var(--grms-text-muted);
   margin-top: 4px;
 }
 .tags {
@@ -1550,8 +1553,7 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 .empty {
-  color: #909399;
-  padding: 24px;
+  width: 100%;
 }
 .room-meta {
   margin: 0 0 12px;
@@ -1564,13 +1566,7 @@ onMounted(async () => {
   margin-left: 4px;
 }
 .meta-date {
-  color: #909399;
   font-size: 12px;
-}
-.section-title {
-  font-weight: 600;
-  margin: 8px 0;
-  font-size: 14px;
 }
 .schedule-order-actions {
   display: inline-flex;
@@ -1604,7 +1600,7 @@ onMounted(async () => {
 .charge-total {
   font-size: 16px;
   font-weight: 600;
-  color: #e6a23c;
+  color: var(--grms-accent);
 }
 .pay-row {
   display: flex;
@@ -1612,17 +1608,7 @@ onMounted(async () => {
   gap: 8px;
   flex-wrap: wrap;
 }
-.form-hint {
-  font-size: 12px;
-  color: #909399;
-  margin-top: 4px;
-}
 .status-warn {
   margin-top: 8px;
-}
-.hint-inline {
-  font-size: 12px;
-  color: #909399;
-  margin-left: 8px;
 }
 </style>

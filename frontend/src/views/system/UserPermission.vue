@@ -1,6 +1,8 @@
 <template>
   <div>
-    <h3>敏感权限直授</h3>
+    <div class="toolbar">
+      <h3>敏感权限直授</h3>
+    </div>
     <p class="hint">
       用于将改价（<code>billing:price:adjust</code>）、房态图（<code>room:board:view</code>）、在住管理（<code>stay:in_house:view</code>）等权限下放给指定账号。默认无直授，仅继承角色权限。
     </p>
@@ -93,15 +95,6 @@ onMounted(loadUsers)
 
 <style scoped>
 .hint {
-  color: #909399;
-  font-size: 13px;
-}
-.perm-row {
-  margin: 8px 0;
-}
-.actions {
-  margin-top: 16px;
-  display: flex;
-  gap: 12px;
+  margin: 0 0 12px;
 }
 </style>

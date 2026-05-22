@@ -131,19 +131,6 @@ onMounted(() => load())
 </script>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-.filter-form {
-  margin-bottom: 12px;
-}
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
 .json-block {
   margin-top: 16px;
 }
